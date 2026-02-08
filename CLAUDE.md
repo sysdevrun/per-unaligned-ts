@@ -52,4 +52,4 @@ per-unaligned-ts is a TypeScript npm module for encoding and decoding ASN.1 PER 
 
 ## Prompt history
 
-When editing this project, always read `PROMPT.md` first to understand the history of prompts and design decisions that shaped the codebase.
+Every prompt given to edit this project must be appended to `PROMPT.md` as a new section, so the file contains a complete history of all prompts used to generate and evolve the project.

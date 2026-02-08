@@ -24,3 +24,18 @@ if some constraints are not implemented yet, they are described in a TODO.md fil
 
 this prompt is added to the PROMPT.md file in a new section.
 in Claude md file, a statement is added to tell Claude to add the prompt file each time a prompt is given to edit the project.
+
+## Website ASN.1 Parser UI
+
+on the website, add an interface to use the schema parser. the output schema can then be used to encode or decode.
+
+## Fix CLAUDE.md prompt history instruction
+
+you added
+
+# Prompt history
+
+When editing this project, always read `PROMPT.md` first to understand the history of prompts and design decisions that shaped the codebase
+
+the goal is to append on every prompt the file so it's possible to get all the prompts used to generate the project.
+also add the two prompts of this conversation
