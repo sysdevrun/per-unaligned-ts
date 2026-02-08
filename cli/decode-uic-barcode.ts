@@ -3,10 +3,13 @@
  * CLI tool to decode a UIC barcode header from a hex fixture,
  * including nested FCB rail ticket data and Intercode 6 extensions.
  *
- * Dynamically discovers schema versions from schemas/uic-barcode/:
- *   - uicBarcodeHeader_v{N}.schema.json  → header format "U{N}"
- *   - uicRailTicketData_v{N}.schema.json → data format "FCB{N}"
- *   - intercode6.schema.json             → Intercode extensions
+ * Schema version mapping:
+ *   Header format "U1" → uicBarcodeHeader_v1.schema.json
+ *   Header format "U2" → uicBarcodeHeader_v2.schema.json
+ *   Data format "FCB1" → uicRailTicketData_v1.schema.json
+ *   Data format "FCB2" → uicRailTicketData_v2.schema.json
+ *   Data format "FCB3" → uicRailTicketData_v3.schema.json
+ *   Intercode extensions → intercode6.schema.json
  *
  * Usage:
  *   npx tsx cli/decode-uic-barcode.ts [path-to-hex-fixture]
@@ -22,54 +25,79 @@ import { BitBuffer } from '../src/BitBuffer';
 import { Codec } from '../src/codecs/Codec';
 
 // ---------------------------------------------------------------------------
-// Dynamic schema loading
+// Schema paths and version maps
 // ---------------------------------------------------------------------------
 
 const SCHEMAS_DIR = path.join(__dirname, '..', 'schemas', 'uic-barcode');
 
-/** Scan schemas dir and build versioned codec maps. */
-function loadSchemas(): {
-  headerCodecs: Map<number, SchemaCodec>;
-  ticketCodecs: Map<number, Record<string, Codec<unknown>>>;
-  intercodeIssuingCodec: SchemaCodec | null;
-  intercodeDynamicCodec: SchemaCodec | null;
-} {
-  const headerCodecs = new Map<number, SchemaCodec>();
-  const ticketCodecs = new Map<number, Record<string, Codec<unknown>>>();
-  let intercodeIssuingCodec: SchemaCodec | null = null;
-  let intercodeDynamicCodec: SchemaCodec | null = null;
+/** Header format "U{N}" → schema file path */
+const HEADER_SCHEMAS: Record<number, string> = {
+  1: path.join(SCHEMAS_DIR, 'uicBarcodeHeader_v1.schema.json'),
+  2: path.join(SCHEMAS_DIR, 'uicBarcodeHeader_v2.schema.json'),
+};
 
-  for (const file of fs.readdirSync(SCHEMAS_DIR)) {
-    if (!file.endsWith('.schema.json')) continue;
-    const filePath = path.join(SCHEMAS_DIR, file);
+/** Data format "FCB{N}" → schema file path */
+const TICKET_SCHEMAS: Record<number, string> = {
+  1: path.join(SCHEMAS_DIR, 'uicRailTicketData_v1.schema.json'),
+  2: path.join(SCHEMAS_DIR, 'uicRailTicketData_v2.schema.json'),
+  3: path.join(SCHEMAS_DIR, 'uicRailTicketData_v3.schema.json'),
+};
 
-    // uicBarcodeHeader_v{N}.schema.json
-    const headerMatch = file.match(/^uicBarcodeHeader_v(\d+)\.schema\.json$/);
-    if (headerMatch) {
-      const version = parseInt(headerMatch[1], 10);
-      const schemas = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      headerCodecs.set(version, new SchemaCodec(schemas.UicBarcodeHeader as SchemaNode));
-      continue;
-    }
+const INTERCODE_SCHEMA = path.join(SCHEMAS_DIR, 'intercode6.schema.json');
 
-    // uicRailTicketData_v{N}.schema.json
-    const ticketMatch = file.match(/^uicRailTicketData_v(\d+)\.schema\.json$/);
-    if (ticketMatch) {
-      const version = parseInt(ticketMatch[1], 10);
-      const schemas = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      ticketCodecs.set(version, SchemaBuilder.buildAll(schemas as Record<string, SchemaNode>));
-      continue;
-    }
+// ---------------------------------------------------------------------------
+// Lazy-loaded codec caches
+// ---------------------------------------------------------------------------
 
-    // intercode6.schema.json
-    if (file === 'intercode6.schema.json') {
-      const schemas = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-      intercodeIssuingCodec = new SchemaCodec(schemas.IntercodeIssuingData as SchemaNode);
-      intercodeDynamicCodec = new SchemaCodec(schemas.IntercodeDynamicData as SchemaNode);
-    }
+const headerCodecCache = new Map<number, SchemaCodec>();
+const ticketCodecCache = new Map<number, Record<string, Codec<unknown>>>();
+let intercodeIssuingCodec: SchemaCodec | undefined;
+let intercodeDynamicCodec: SchemaCodec | undefined;
+
+function getHeaderCodec(version: number): SchemaCodec {
+  let codec = headerCodecCache.get(version);
+  if (codec) return codec;
+
+  const schemaPath = HEADER_SCHEMAS[version];
+  if (!schemaPath) {
+    throw new Error(
+      `No schema for header v${version}. Supported: ${Object.keys(HEADER_SCHEMAS).map(v => `v${v}`).join(', ')}`,
+    );
   }
+  const schemas = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
+  codec = new SchemaCodec(schemas.UicBarcodeHeader as SchemaNode);
+  headerCodecCache.set(version, codec);
+  return codec;
+}
 
-  return { headerCodecs, ticketCodecs, intercodeIssuingCodec, intercodeDynamicCodec };
+function getTicketCodecs(version: number): Record<string, Codec<unknown>> {
+  let codecs = ticketCodecCache.get(version);
+  if (codecs) return codecs;
+
+  const schemaPath = TICKET_SCHEMAS[version];
+  if (!schemaPath) {
+    throw new Error(
+      `No schema for FCB${version}. Supported: ${Object.keys(TICKET_SCHEMAS).map(v => `FCB${v}`).join(', ')}`,
+    );
+  }
+  const schemas = JSON.parse(fs.readFileSync(schemaPath, 'utf-8'));
+  codecs = SchemaBuilder.buildAll(schemas as Record<string, SchemaNode>);
+  ticketCodecCache.set(version, codecs);
+  return codecs;
+}
+
+function getIntercodeIssuingCodec(): SchemaCodec {
+  if (intercodeIssuingCodec) return intercodeIssuingCodec;
+  const schemas = JSON.parse(fs.readFileSync(INTERCODE_SCHEMA, 'utf-8'));
+  intercodeIssuingCodec = new SchemaCodec(schemas.IntercodeIssuingData as SchemaNode);
+  intercodeDynamicCodec = new SchemaCodec(schemas.IntercodeDynamicData as SchemaNode);
+  return intercodeIssuingCodec;
+}
+
+function getIntercodeDynamicCodec(): SchemaCodec {
+  if (intercodeDynamicCodec) return intercodeDynamicCodec;
+  getIntercodeIssuingCodec(); // loads both
+  return intercodeDynamicCodec!;
 }
 
 // ---------------------------------------------------------------------------
@@ -143,46 +171,24 @@ function main(): void {
     process.exit(1);
   }
 
-  // Load all available schemas
-  const { headerCodecs, ticketCodecs, intercodeIssuingCodec, intercodeDynamicCodec } = loadSchemas();
-
-  const headerVersions = [...headerCodecs.keys()].sort((a, b) => a - b);
-  const ticketVersions = [...ticketCodecs.keys()].sort((a, b) => a - b);
   console.log(`=== UIC Barcode Decoder ===`);
-  console.log(`File: ${fixturePath}`);
-  console.log(`Available header schemas: ${headerVersions.map(v => `v${v}`).join(', ')}`);
-  console.log(`Available ticket schemas: ${ticketVersions.map(v => `v${v} (FCB${v})`).join(', ')}\n`);
+  console.log(`File: ${fixturePath}\n`);
 
-  // Step 1: Try decoding the barcode header with each version until one works.
-  // The format field ("U1", "U2", ...) tells us which header version was used.
-  // We start by trying with the lowest version (v1) since the format field is
-  // at the same position in all versions and we can re-decode with the right one.
   const hex = loadHexFixture(fixturePath);
 
-  // Peek the format field by trying v1 first (always present)
-  const peekCodec = headerCodecs.get(headerVersions[0]);
-  if (!peekCodec) {
-    console.error('Error: no header schemas found');
-    process.exit(1);
-  }
-  const peek = peekCodec.decodeFromHex(hex) as any;
+  // Step 1: Peek the format field using v1 header (format is at the same
+  // position in all versions), then re-decode with the matching version.
+  const peek = getHeaderCodec(1).decodeFromHex(hex) as any;
   const format: string = peek.format;
 
-  // Extract version number from format "U1", "U2", etc.
   const headerVersionMatch = format.match(/^U(\d+)$/);
   if (!headerVersionMatch) {
     console.error(`Error: unknown header format "${format}"`);
     process.exit(1);
   }
   const headerVersion = parseInt(headerVersionMatch[1], 10);
-  const headerCodec = headerCodecs.get(headerVersion);
-  if (!headerCodec) {
-    console.error(`Error: no schema for header version ${headerVersion} (format "${format}")`);
-    console.error(`Available: ${headerVersions.map(v => `v${v}`).join(', ')}`);
-    process.exit(1);
-  }
 
-  // Decode with the correct header version
+  const headerCodec = getHeaderCodec(headerVersion);
   const header = headerCodec.decodeFromHex(hex) as any;
 
   console.log(`--- UicBarcodeHeader (${format}) ---`);
@@ -220,16 +226,12 @@ function main(): void {
     const fcbMatch = block.dataFormat.match(/^FCB(\d+)$/);
     if (fcbMatch) {
       const fcbVersion = parseInt(fcbMatch[1], 10);
-      const codecs = ticketCodecs.get(fcbVersion);
-      if (!codecs) {
-        console.error(`  No schema for FCB${fcbVersion}. Available: ${ticketVersions.map(v => `v${v}`).join(', ')}`);
-        continue;
-      }
       console.log(`\n  >>> Decoding as UicRailTicketData v${fcbVersion} (${block.dataFormat}) <<<`);
       try {
+        const codecs = getTicketCodecs(fcbVersion);
         const buf = BitBuffer.from(block.data);
         const ticket = codecs.UicRailTicketData.decode(buf) as any;
-        printRailTicketData(ticket, intercodeIssuingCodec);
+        printRailTicketData(ticket);
       } catch (err) {
         console.error(`  ERROR decoding UicRailTicketData: ${(err as Error).message}`);
       }
@@ -242,11 +244,11 @@ function main(): void {
     console.log(`dataFormat: ${l2.level2Data.dataFormat}`);
     console.log(`data: [${l2.level2Data.data.length} bytes] ${toHex(l2.level2Data.data)}`);
 
-    if (isIntercodeDynamicData(l2.level2Data.dataFormat) && intercodeDynamicCodec) {
+    if (isIntercodeDynamicData(l2.level2Data.dataFormat)) {
       const rics = l2.level2Data.dataFormat.match(/^_(\d+)\.ID1$/)?.[1];
       console.log(`\n>>> Decoding as IntercodeDynamicData (RICS: ${rics}) <<<`);
       try {
-        const dynamic = intercodeDynamicCodec.decode(l2.level2Data.data) as any;
+        const dynamic = getIntercodeDynamicCodec().decode(l2.level2Data.data) as any;
         console.log(formatValue(dynamic, 1));
       } catch (err) {
         console.error(`ERROR decoding IntercodeDynamicData: ${(err as Error).message}`);
@@ -258,7 +260,7 @@ function main(): void {
 }
 
 /** Print decoded UicRailTicketData with nested extension decoding. */
-function printRailTicketData(ticket: any, intercodeIssuingCodec: SchemaCodec | null): void {
+function printRailTicketData(ticket: any): void {
   // Issuing detail
   if (ticket.issuingDetail) {
     const iss = ticket.issuingDetail;
@@ -279,7 +281,7 @@ function printRailTicketData(ticket: any, intercodeIssuingCodec: SchemaCodec | n
     if (iss.issuerPNR != null) console.log(`  issuerPNR: ${iss.issuerPNR}`);
 
     // Decode extension if present
-    if (iss.extension && intercodeIssuingCodec) {
+    if (iss.extension) {
       const ext = iss.extension;
       console.log(`\n  --- IssuingDetail Extension ---`);
       console.log(`  extensionId: ${ext.extensionId}`);
@@ -289,7 +291,7 @@ function printRailTicketData(ticket: any, intercodeIssuingCodec: SchemaCodec | n
         const rics = ext.extensionId.match(/^_(\d+)II1$/)?.[1];
         console.log(`\n  >>> Decoding as IntercodeIssuingData (RICS: ${rics}) <<<`);
         try {
-          const issuing = intercodeIssuingCodec.decode(ext.extensionData) as any;
+          const issuing = getIntercodeIssuingCodec().decode(ext.extensionData) as any;
           console.log(`  intercodeVersion: ${issuing.intercodeVersion}`);
           console.log(`  intercodeInstanciation: ${issuing.intercodeInstanciation}`);
           console.log(`  networkId: [${issuing.networkId.length} bytes] ${toHex(issuing.networkId)}`);
@@ -331,7 +333,6 @@ function printRailTicketData(ticket: any, intercodeIssuingCodec: SchemaCodec | n
       const ticketData = doc.ticket;
       if (!ticketData) continue;
 
-      // Get the actual ticket variant (openTicket, pass, reservation, etc.)
       for (const [variant, data] of Object.entries(ticketData)) {
         console.log(`  variant: ${variant}`);
         console.log(formatValue(data, 2));
