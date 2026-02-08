@@ -102,3 +102,7 @@ Download both UIC barcode ASN.1 files (uicBarcodeHeader_v2.0.1.asn and uicRailTi
 ## Recursive schema unit tests
 
 Create specific unit tests in both the ASN.1 parser/converter and the encoder to check recursive schemas are supported. For the encoder, write at least a document that has 3 deep levels of recursivity, encode and decode it to check it works as expected.
+
+## Generate Intercode schemas
+
+Compile the Intercode ASN.1 types (IntercodeIssuingData, ProductRetailerData, RetailChannelData, IntercodeDynamicData) and save the schema as intercode6.schema.json next to the UIC barcode schemas.

@@ -10,6 +10,7 @@ These schemas were generated from the official ASN.1 sources using `parseAsn1Mod
 |--------|-------------|-------------|
 | [uicBarcodeHeader.schema.json](./uicBarcodeHeader.schema.json) | [uicBarcodeHeader_v2.0.1.asn](https://github.com/UnionInternationalCheminsdeFer/UIC-barcode/blob/master/misc/uicBarcodeHeader_v2.0.1.asn) | UIC barcode header with multi-level signature support (v2.0.1) |
 | [uicRailTicketData.schema.json](./uicRailTicketData.schema.json) | [uicRailTicketData_v3.0.5.asn](https://github.com/UnionInternationalCheminsdeFer/UIC-barcode/blob/master/misc/uicRailTicketData_v3.0.5.asn) | UIC rail ticket data with all document types (v3.0.5) |
+| [intercode6.schema.json](./intercode6.schema.json) | Intercode XP P 99-405-6 | Intercode issuing data, retail channel, product retailer, and dynamic content (v6) |
 
 ## Usage
 
