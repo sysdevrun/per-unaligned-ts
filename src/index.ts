@@ -24,7 +24,6 @@ export type { SchemaNode } from './schema/SchemaBuilder';
 export { SchemaCodec } from './schema/SchemaCodec';
 export { parseAsn1Module } from './parser/AsnParser';
 export { convertModuleToSchemaNodes } from './parser/toSchemaNode';
-export type { ConvertOptions } from './parser/toSchemaNode';
 export type {
   AsnModule,
   AsnTypeAssignment,

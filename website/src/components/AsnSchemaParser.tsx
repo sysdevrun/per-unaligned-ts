@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { parseAsn1Module, convertModuleToSchemaNodes } from 'per-unaligned-ts';
-import type { SchemaNode, ConvertOptions } from 'per-unaligned-ts';
+import type { SchemaNode } from 'per-unaligned-ts';
 
 interface AsnSchemaParserProps {
   onSchemaSelect: (schemaText: string) => void;
@@ -76,16 +76,12 @@ const EXAMPLES = [
   { label: 'UIC Barcode Header', text: UIC_BARCODE_EXAMPLE },
 ];
 
-type OidHandling = ConvertOptions['objectIdentifierHandling'];
-
 export default function AsnSchemaParser({ onSchemaSelect }: AsnSchemaParserProps) {
   const [asnText, setAsnText] = useState('');
   const [parseError, setParseError] = useState<string | null>(null);
   const [typeNames, setTypeNames] = useState<string[]>([]);
   const [schemas, setSchemas] = useState<Record<string, SchemaNode>>({});
   const [selectedType, setSelectedType] = useState<string | null>(null);
-  const [oidHandling, setOidHandling] = useState<OidHandling>('omit');
-  const [conversionWarning, setConversionWarning] = useState<string | null>(null);
 
   const handleParse = (text?: string) => {
     const input = text ?? asnText;
@@ -93,7 +89,6 @@ export default function AsnSchemaParser({ onSchemaSelect }: AsnSchemaParserProps
     setTypeNames([]);
     setSchemas({});
     setSelectedType(null);
-    setConversionWarning(null);
 
     if (!input.trim()) {
       setParseError('Enter ASN.1 notation to parse');
@@ -102,9 +97,7 @@ export default function AsnSchemaParser({ onSchemaSelect }: AsnSchemaParserProps
 
     try {
       const module = parseAsn1Module(input);
-      const converted = convertModuleToSchemaNodes(module, {
-        objectIdentifierHandling: oidHandling,
-      });
+      const converted = convertModuleToSchemaNodes(module);
       const names = Object.keys(converted);
       if (names.length === 0) {
         setParseError('No type assignments found in module');
@@ -113,17 +106,6 @@ export default function AsnSchemaParser({ onSchemaSelect }: AsnSchemaParserProps
       setSchemas(converted);
       setTypeNames(names);
       setSelectedType(names[0]);
-
-      // Check if any OID fields were encountered
-      if (input.includes('OBJECT IDENTIFIER') && oidHandling === 'omit') {
-        setConversionWarning(
-          'OBJECT IDENTIFIER fields were omitted from the schema. Change handling mode below if needed.',
-        );
-      } else if (input.includes('OBJECT IDENTIFIER') && oidHandling === 'octetstring') {
-        setConversionWarning(
-          'OBJECT IDENTIFIER fields were substituted with OCTET STRING.',
-        );
-      }
     } catch (e: unknown) {
       setParseError(e instanceof Error ? e.message : 'Parse failed');
     }
@@ -156,7 +138,7 @@ export default function AsnSchemaParser({ onSchemaSelect }: AsnSchemaParserProps
 
       <p className="text-xs text-gray-500">
         Paste ASN.1 module notation below. Supports SEQUENCE, SEQUENCE OF, CHOICE, ENUMERATED,
-        INTEGER with constraints, string types, OPTIONAL, and type references.
+        INTEGER with constraints, OBJECT IDENTIFIER, string types, OPTIONAL, and type references.
       </p>
 
       <textarea
@@ -171,34 +153,15 @@ export default function AsnSchemaParser({ onSchemaSelect }: AsnSchemaParserProps
         placeholder={`MyModule DEFINITIONS AUTOMATIC TAGS ::= BEGIN\n\n  MyType ::= SEQUENCE {\n    id INTEGER (0..255),\n    name IA5String\n  }\n\nEND`}
       />
 
-      <div className="flex items-center gap-4 flex-wrap">
-        <button
-          onClick={() => handleParse()}
-          className="px-5 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"
-        >
-          Parse Module
-        </button>
-
-        <div className="flex items-center gap-2">
-          <label className="text-xs text-gray-600">OBJECT IDENTIFIER:</label>
-          <select
-            value={oidHandling}
-            onChange={(e) => setOidHandling(e.target.value as OidHandling)}
-            className="text-xs border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-300"
-          >
-            <option value="omit">Omit fields</option>
-            <option value="octetstring">Treat as OCTET STRING</option>
-            <option value="error">Error</option>
-          </select>
-        </div>
-      </div>
+      <button
+        onClick={() => handleParse()}
+        className="px-5 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"
+      >
+        Parse Module
+      </button>
 
       {parseError && (
         <p className="text-red-600 text-xs">{parseError}</p>
-      )}
-
-      {conversionWarning && (
-        <p className="text-amber-600 text-xs">{conversionWarning}</p>
       )}
 
       {typeNames.length > 0 && (

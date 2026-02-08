@@ -1,6 +1,5 @@
 export { parseAsn1Module } from './AsnParser';
 export { convertModuleToSchemaNodes } from './toSchemaNode';
-export type { ConvertOptions } from './toSchemaNode';
 export type {
   AsnModule,
   AsnTypeAssignment,
