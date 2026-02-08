@@ -95,6 +95,38 @@ describe('EnumeratedCodec', () => {
     });
   });
 
+  describe('extensible with empty extension values (marker only)', () => {
+    const codec = new EnumeratedCodec({
+      values: ['red', 'green', 'blue'],
+      extensionValues: [],
+    });
+
+    it('is extensible', () => {
+      expect(codec.extensible).toBe(true);
+    });
+
+    it('encodes root value with ext bit 0', () => {
+      const buf = BitBuffer.alloc();
+      codec.encode(buf, 'green');
+      buf.reset();
+      expect(buf.readBit()).toBe(0);
+    });
+
+    it('round-trips root values', () => {
+      for (const val of ['red', 'green', 'blue']) {
+        const buf = BitBuffer.alloc();
+        codec.encode(buf, val);
+        buf.reset();
+        expect(codec.decode(buf)).toBe(val);
+      }
+    });
+
+    it('throws for unknown value', () => {
+      const buf = BitBuffer.alloc();
+      expect(() => codec.encode(buf, 'purple')).toThrow('Unknown enumerated value');
+    });
+  });
+
   describe('single value', () => {
     const codec = new EnumeratedCodec({ values: ['only'] });
 

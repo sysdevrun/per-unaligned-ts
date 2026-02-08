@@ -78,3 +78,10 @@ id: 100, name: world, with v2. decode with v1 the output got from encoding from 
 ## Extension marker position
 
 does the position of the extension marker matter
+
+## Extension marker documentation and parser fix
+
+add clearly in the documentation how to indicate the marker extension is present.
+
+in the asn schema parser, ensure this is correctly added in the schema.
+add specific unit tests for that

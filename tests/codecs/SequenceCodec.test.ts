@@ -142,6 +142,33 @@ describe('SequenceCodec', () => {
     });
   });
 
+  describe('extensible with empty extension fields (marker only)', () => {
+    const codec = new SequenceCodec({
+      fields: [
+        { name: 'x', codec: new IntegerCodec({ min: 0, max: 7 }) },
+      ],
+      extensionFields: [],
+    });
+
+    it('is extensible', () => {
+      expect(codec.extensible).toBe(true);
+    });
+
+    it('encodes with ext bit 0 when no extensions', () => {
+      const buf = BitBuffer.alloc();
+      codec.encode(buf, { x: 3 });
+      buf.reset();
+      expect(buf.readBit()).toBe(0);
+    });
+
+    it('round-trips root-only data', () => {
+      const buf = BitBuffer.alloc();
+      codec.encode(buf, { x: 5 });
+      buf.reset();
+      expect(codec.decode(buf)).toEqual({ x: 5 });
+    });
+  });
+
   describe('multiple optional and default fields', () => {
     const codec = new SequenceCodec({
       fields: [

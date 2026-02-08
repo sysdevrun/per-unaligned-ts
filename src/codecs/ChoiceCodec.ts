@@ -38,6 +38,7 @@ export interface ChoiceValue {
 export class ChoiceCodec implements Codec<ChoiceValue> {
   private readonly rootAlts: readonly ChoiceAlternative[];
   private readonly extAlts: readonly ChoiceAlternative[];
+  private readonly _extensible: boolean;
   private readonly rootNameIndex: Map<string, number>;
   private readonly extNameIndex: Map<string, number>;
 
@@ -47,12 +48,14 @@ export class ChoiceCodec implements Codec<ChoiceValue> {
     }
     this.rootAlts = options.alternatives;
     this.extAlts = options.extensionAlternatives ?? [];
+    // Extensible if extensionAlternatives was explicitly provided (even if empty)
+    this._extensible = options.extensionAlternatives !== undefined;
     this.rootNameIndex = new Map(this.rootAlts.map((a, i) => [a.name, i]));
     this.extNameIndex = new Map(this.extAlts.map((a, i) => [a.name, i]));
   }
 
   get extensible(): boolean {
-    return this.extAlts.length > 0;
+    return this._extensible;
   }
 
   encode(buffer: BitBuffer, value: ChoiceValue): void {

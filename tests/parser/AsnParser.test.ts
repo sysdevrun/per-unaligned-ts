@@ -201,6 +201,15 @@ describe('AsnParser', () => {
       expect(seq.extensionFields![0].name).toBe('extra');
     });
 
+    it('parses SEQUENCE with extension marker only (no additions)', () => {
+      const type = parseType('SEQUENCE { name IA5String, ... }');
+      const seq = type as AsnSequenceType;
+      expect(seq.fields).toHaveLength(1);
+      expect(seq.fields[0].name).toBe('name');
+      expect(seq.extensionFields).toBeDefined();
+      expect(seq.extensionFields).toEqual([]);
+    });
+
     it('parses SEQUENCE with type references', () => {
       const type = parseType('SEQUENCE { data MyType }');
       const seq = type as AsnSequenceType;
@@ -253,6 +262,14 @@ describe('AsnParser', () => {
       expect(ch.extensionAlternatives).toHaveLength(1);
       expect(ch.extensionAlternatives![0].name).toBe('b');
     });
+
+    it('parses CHOICE with extension marker only (no additions)', () => {
+      const type = parseType('CHOICE { a BOOLEAN, ... }');
+      const ch = type as AsnChoiceType;
+      expect(ch.alternatives).toHaveLength(1);
+      expect(ch.extensionAlternatives).toBeDefined();
+      expect(ch.extensionAlternatives).toEqual([]);
+    });
   });
 
   describe('ENUMERATED', () => {
@@ -268,6 +285,14 @@ describe('AsnParser', () => {
       const en = type as AsnEnumeratedType;
       expect(en.rootValues).toEqual(['red', 'green']);
       expect(en.extensionValues).toEqual(['yellow']);
+    });
+
+    it('parses ENUMERATED with extension marker only (no values)', () => {
+      const type = parseType('ENUMERATED { red, green, ... }');
+      const en = type as AsnEnumeratedType;
+      expect(en.rootValues).toEqual(['red', 'green']);
+      expect(en.extensionValues).toBeDefined();
+      expect(en.extensionValues).toEqual([]);
     });
 
     it('parses ENUMERATED with numeric values', () => {
