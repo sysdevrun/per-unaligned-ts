@@ -53,6 +53,68 @@ const decoded = codec.decodeFromHex(hex);
 console.log(decoded);
 ```
 
+### Extension Markers
+
+Extension markers (`...`) indicate that a type may be extended in future versions, providing forward compatibility. When present, PER encoding includes a 1-bit extension marker prefix (0 = not extended, 1 = extended).
+
+#### In ASN.1 notation
+
+Use `...` to mark a type as extensible in ASN.1 schema text parsed by the built-in parser:
+
+```asn1
+-- SEQUENCE: extension marker separates root fields from extension additions
+MessageV1 ::= SEQUENCE {
+    id     INTEGER (0..255),
+    name   IA5String,
+    ...                        -- extensible, no extensions yet
+}
+
+MessageV2 ::= SEQUENCE {
+    id     INTEGER (0..255),
+    name   IA5String,
+    ...,                       -- extension marker
+    email  IA5String           -- extension addition
+}
+
+-- ENUMERATED: extension marker separates root values from extension values
+Color ::= ENUMERATED { red, green, blue, ... }
+ColorV2 ::= ENUMERATED { red, green, blue, ..., yellow, purple }
+
+-- CHOICE: extension marker separates root alternatives from extension alternatives
+Shape ::= CHOICE { circle BOOLEAN, ..., polygon INTEGER }
+
+-- Constraints: extensible constraints allow values outside the root range
+FlexInt ::= INTEGER (0..100, ...)
+FlexStr ::= OCTET STRING (SIZE (1..50, ...))
+```
+
+#### In JSON SchemaNode definitions
+
+When building schemas directly as JSON `SchemaNode` objects, indicate extensibility with these properties:
+
+```typescript
+// SEQUENCE: provide extensionFields (even empty [] to mark as extensible)
+const schema: SchemaNode = {
+  type: 'SEQUENCE',
+  fields: [
+    { name: 'id', schema: { type: 'INTEGER', min: 0, max: 255 } },
+  ],
+  extensionFields: [],  // extensible with no additions yet
+};
+
+// ENUMERATED: provide extensionValues
+{ type: 'ENUMERATED', values: ['red', 'green'], extensionValues: [] }
+
+// CHOICE: provide extensionAlternatives
+{ type: 'CHOICE', alternatives: [...], extensionAlternatives: [] }
+
+// Constrained types: set extensible: true
+{ type: 'INTEGER', min: 0, max: 100, extensible: true }
+{ type: 'BIT STRING', minSize: 1, maxSize: 50, extensible: true }
+```
+
+Key distinction: providing an empty array (`extensionFields: []`) marks the type as extensible, while omitting the property entirely (`extensionFields: undefined`) means the type is not extensible. This matters because extensible types include the 1-bit extension marker in the encoding.
+
 ## Supported Types
 
 | Type | Description |

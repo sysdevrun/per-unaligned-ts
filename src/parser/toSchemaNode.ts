@@ -81,7 +81,7 @@ function convertType(
         type: 'ENUMERATED',
         values: type.rootValues,
       };
-      if (type.extensionValues && type.extensionValues.length > 0) {
+      if (type.extensionValues !== undefined) {
         (node as { extensionValues?: string[] }).extensionValues = type.extensionValues;
       }
       return node;
@@ -93,7 +93,7 @@ function convertType(
         type: 'SEQUENCE',
         fields,
       };
-      if (type.extensionFields && type.extensionFields.length > 0) {
+      if (type.extensionFields !== undefined) {
         node.extensionFields = convertFields(type.extensionFields, typeMap, options);
       }
       return node as SchemaNode;
@@ -114,7 +114,7 @@ function convertType(
         type: 'CHOICE',
         alternatives,
       };
-      if (type.extensionAlternatives && type.extensionAlternatives.length > 0) {
+      if (type.extensionAlternatives !== undefined) {
         node.extensionAlternatives = type.extensionAlternatives.map(a => ({
           name: a.name,
           schema: convertType(a.type, typeMap, options),

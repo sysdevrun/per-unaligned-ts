@@ -22,6 +22,7 @@ export interface EnumeratedOptions {
 export class EnumeratedCodec implements Codec<string> {
   private readonly rootValues: readonly string[];
   private readonly extValues: readonly string[];
+  private readonly _extensible: boolean;
   private readonly rootIndexMap: Map<string, number>;
   private readonly extIndexMap: Map<string, number>;
 
@@ -31,12 +32,14 @@ export class EnumeratedCodec implements Codec<string> {
     }
     this.rootValues = options.values;
     this.extValues = options.extensionValues ?? [];
+    // Extensible if extensionValues was explicitly provided (even if empty)
+    this._extensible = options.extensionValues !== undefined;
     this.rootIndexMap = new Map(options.values.map((v, i) => [v, i]));
     this.extIndexMap = new Map(this.extValues.map((v, i) => [v, i]));
   }
 
   get extensible(): boolean {
-    return this.extValues.length > 0;
+    return this._extensible;
   }
 
   encode(buffer: BitBuffer, value: string): void {

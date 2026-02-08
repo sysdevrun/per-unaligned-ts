@@ -134,6 +134,17 @@ describe('convertModuleToSchemaNodes', () => {
         ],
       });
     });
+
+    it('converts SEQUENCE with extension marker only (no additions)', () => {
+      const schema = convertSingle('SEQUENCE { a BOOLEAN, ... }');
+      expect(schema).toEqual({
+        type: 'SEQUENCE',
+        fields: [
+          { name: 'a', schema: { type: 'BOOLEAN' } },
+        ],
+        extensionFields: [],
+      });
+    });
   });
 
   describe('SEQUENCE OF', () => {
@@ -180,6 +191,17 @@ describe('convertModuleToSchemaNodes', () => {
         ],
       });
     });
+
+    it('converts CHOICE with extension marker only (no additions)', () => {
+      const schema = convertSingle('CHOICE { a BOOLEAN, ... }');
+      expect(schema).toEqual({
+        type: 'CHOICE',
+        alternatives: [
+          { name: 'a', schema: { type: 'BOOLEAN' } },
+        ],
+        extensionAlternatives: [],
+      });
+    });
   });
 
   describe('ENUMERATED', () => {
@@ -197,6 +219,15 @@ describe('convertModuleToSchemaNodes', () => {
         type: 'ENUMERATED',
         values: ['red', 'green'],
         extensionValues: ['yellow'],
+      });
+    });
+
+    it('converts ENUMERATED with extension marker only (no values)', () => {
+      const schema = convertSingle('ENUMERATED { red, green, ... }');
+      expect(schema).toEqual({
+        type: 'ENUMERATED',
+        values: ['red', 'green'],
+        extensionValues: [],
       });
     });
   });

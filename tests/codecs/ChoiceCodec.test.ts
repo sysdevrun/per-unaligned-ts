@@ -107,6 +107,41 @@ describe('ChoiceCodec', () => {
     });
   });
 
+  describe('extensible with empty extension alternatives (marker only)', () => {
+    const codec = new ChoiceCodec({
+      alternatives: [
+        { name: 'flag', codec: new BooleanCodec() },
+        { name: 'count', codec: new IntegerCodec({ min: 0, max: 255 }) },
+      ],
+      extensionAlternatives: [],
+    });
+
+    it('is extensible', () => {
+      expect(codec.extensible).toBe(true);
+    });
+
+    it('encodes root alternative with ext bit 0', () => {
+      const buf = BitBuffer.alloc();
+      codec.encode(buf, { key: 'flag', value: true });
+      buf.reset();
+      expect(buf.readBit()).toBe(0);
+    });
+
+    it('round-trips root alternatives', () => {
+      const buf = BitBuffer.alloc();
+      codec.encode(buf, { key: 'count', value: 100 });
+      buf.reset();
+      const result = codec.decode(buf);
+      expect(result.key).toBe('count');
+      expect(result.value).toBe(100);
+    });
+
+    it('throws for unknown alternative', () => {
+      const buf = BitBuffer.alloc();
+      expect(() => codec.encode(buf, { key: 'unknown', value: 0 })).toThrow();
+    });
+  });
+
   it('throws when constructed with no alternatives', () => {
     expect(() => new ChoiceCodec({ alternatives: [] })).toThrow();
   });
