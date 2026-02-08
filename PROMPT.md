@@ -44,3 +44,37 @@ also add the two prompts of this conversation
 
 deploy to GitHub pages fail with
 Cannot find module 'peggy' or its corresponding type declarations.
+
+## Encode schema documents
+
+use the library to encode the following schema:
+id : integer with default value 5
+name: ia5string default value hello
+
+then encode the two documents
+id: 5, name: hello
+id: 42, name world
+
+## Test for decoding
+
+test for decoding
+
+## Schema versioning with extension marker
+
+new schemas:
+schema v1
+id : integer
+extension marker enabled
+
+schema v2
+id : integer
+extension marker
+name: ia5string
+
+objects to encode in round trip:
+id :42 , With v1 and v2
+id: 100, name: world, with v2. decode with v1 the output got from encoding from v2 too
+
+## Extension marker position
+
+does the position of the extension marker matter

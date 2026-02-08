@@ -33,11 +33,14 @@ export interface SequenceOptions {
 export class SequenceCodec implements Codec<Record<string, unknown>> {
   private readonly rootFields: readonly SequenceField[];
   private readonly extFields: readonly SequenceField[];
+  private readonly _extensible: boolean;
   private readonly optionalDefaultFields: number[];
 
   constructor(options: SequenceOptions) {
     this.rootFields = options.fields;
     this.extFields = options.extensionFields ?? [];
+    // Extensible if extensionFields was explicitly provided (even if empty)
+    this._extensible = options.extensionFields !== undefined;
     // Indices of root fields that are optional or have defaults
     this.optionalDefaultFields = [];
     for (let i = 0; i < this.rootFields.length; i++) {
@@ -48,7 +51,7 @@ export class SequenceCodec implements Codec<Record<string, unknown>> {
   }
 
   get extensible(): boolean {
-    return this.extFields.length > 0;
+    return this._extensible;
   }
 
   /** Number of preamble bits (count of optional + default root fields). */
