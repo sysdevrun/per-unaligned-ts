@@ -260,8 +260,21 @@ describe('convertModuleToSchemaNodes', () => {
   });
 
   describe('OBJECT IDENTIFIER handling', () => {
-    it('throws by default on OBJECT IDENTIFIER', () => {
-      expect(() => convertSingle('OBJECT IDENTIFIER')).toThrow('OBJECT IDENTIFIER type is not supported');
+    it('converts OBJECT IDENTIFIER natively by default', () => {
+      expect(convertSingle('OBJECT IDENTIFIER')).toEqual({ type: 'OBJECT IDENTIFIER' });
+    });
+
+    it('converts OBJECT IDENTIFIER natively with explicit option', () => {
+      const schema = convertSingle('OBJECT IDENTIFIER', {
+        objectIdentifierHandling: 'native',
+      });
+      expect(schema).toEqual({ type: 'OBJECT IDENTIFIER' });
+    });
+
+    it('throws when objectIdentifierHandling is "error"', () => {
+      expect(() => convertSingle('OBJECT IDENTIFIER', {
+        objectIdentifierHandling: 'error',
+      })).toThrow('OBJECT IDENTIFIER');
     });
 
     it('substitutes OCTET STRING when objectIdentifierHandling is "octetstring"', () => {

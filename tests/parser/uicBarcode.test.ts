@@ -92,8 +92,28 @@ describe('UIC Barcode Header schema', () => {
   });
 
   describe('conversion to SchemaNode', () => {
-    it('throws when OBJECT IDENTIFIER fields are present (default)', () => {
-      expect(() => convertModuleToSchemaNodes(module)).toThrow('OBJECT IDENTIFIER');
+    it('converts OBJECT IDENTIFIER fields natively by default', () => {
+      const schemas = convertModuleToSchemaNodes(module);
+      expect(Object.keys(schemas)).toEqual([
+        'UicBarcodeHeader',
+        'Level2DataType',
+        'Level1DataType',
+        'DataType',
+      ]);
+      // OID fields should be present with OBJECT IDENTIFIER type
+      const level1 = schemas['Level1DataType'] as {
+        type: string;
+        fields: Array<{ name: string; schema: { type: string }; optional?: boolean }>;
+      };
+      const oidField = level1.fields.find(f => f.name === 'level1KeyAlg')!;
+      expect(oidField.schema).toEqual({ type: 'OBJECT IDENTIFIER' });
+      expect(oidField.optional).toBe(true);
+    });
+
+    it('throws when objectIdentifierHandling is "error"', () => {
+      expect(() => convertModuleToSchemaNodes(module, {
+        objectIdentifierHandling: 'error',
+      })).toThrow('OBJECT IDENTIFIER');
     });
 
     it('converts successfully with objectIdentifierHandling: "omit"', () => {
@@ -194,6 +214,16 @@ describe('UIC Barcode Header schema', () => {
       for (const name of Object.keys(schemas)) {
         const codec = SchemaBuilder.build(schemas[name]);
         expect(codec).toBeDefined();
+      }
+    });
+
+    it('can build codecs with native OID support (default)', () => {
+      const schemas = convertModuleToSchemaNodes(module);
+      for (const name of Object.keys(schemas)) {
+        const codec = SchemaBuilder.build(schemas[name]);
+        expect(codec).toBeDefined();
+        expect(codec.encode).toBeInstanceOf(Function);
+        expect(codec.decode).toBeInstanceOf(Function);
       }
     });
   });

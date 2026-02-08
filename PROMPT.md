@@ -90,3 +90,7 @@ add specific unit tests for that
 
 add a test section dedicated to full end to end tests.
 add the conversions with ASN parser and encoding and decoding for real-world ASN.1 types from the Intercode specification (IntercodeIssuingData, ProductRetailerData, RetailChannelData, IntercodeDynamicData) and the UIC Barcode Header standard. Expected PER unaligned encoding hex values are verified against the specification documents.
+
+## OBJECT IDENTIFIER codec implementation
+
+Implement native OBJECT IDENTIFIER support for PER encoding/decoding. Create ObjectIdentifierCodec that encodes/decodes OID dot-notation strings using BER contents octets (X.690 §8.19) wrapped in PER unconstrained length determinant (X.691 §23). Add OBJECT IDENTIFIER to SchemaNode union and SchemaBuilder. Change default objectIdentifierHandling from 'error' to 'native'. Add end-to-end ASN.1 parse/encode/decode roundtrip tests including SEQUENCE with optional OID fields, CHOICE with OID alternatives, SEQUENCE OF OID, and the UIC barcode schema with all 4 OID fields.

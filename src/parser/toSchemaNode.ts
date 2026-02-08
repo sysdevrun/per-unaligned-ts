@@ -13,11 +13,12 @@ import type {
 export interface ConvertOptions {
   /**
    * How to handle OBJECT IDENTIFIER fields.
-   * - 'error': throw an error (default)
+   * - 'native': encode/decode as OID dot-notation strings (default)
+   * - 'error': throw an error
    * - 'omit': silently omit the field from SEQUENCE/CHOICE
    * - 'octetstring': substitute OCTET STRING
    */
-  objectIdentifierHandling?: 'error' | 'omit' | 'octetstring';
+  objectIdentifierHandling?: 'native' | 'error' | 'omit' | 'octetstring';
 }
 
 /**
@@ -252,12 +253,14 @@ function fieldUsesObjectIdentifier(type: AsnType): boolean {
 }
 
 function handleObjectIdentifier(options: ConvertOptions): SchemaNode {
-  const handling = options.objectIdentifierHandling || 'error';
+  const handling = options.objectIdentifierHandling || 'native';
   switch (handling) {
+    case 'native':
+      return { type: 'OBJECT IDENTIFIER' };
     case 'error':
       throw new Error(
-        'OBJECT IDENTIFIER type is not supported. ' +
-        'Use objectIdentifierHandling option: "omit" to skip fields or "octetstring" to substitute OCTET STRING.',
+        'OBJECT IDENTIFIER type is not supported with "error" handling. ' +
+        'Use objectIdentifierHandling: "native" (default), "omit", or "octetstring".',
       );
     case 'octetstring':
       return { type: 'OCTET STRING' };

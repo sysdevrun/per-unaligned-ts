@@ -9,6 +9,7 @@ export { BitStringCodec } from './codecs/BitStringCodec';
 export type { BitStringValue, BitStringConstraints } from './codecs/BitStringCodec';
 export { OctetStringCodec } from './codecs/OctetStringCodec';
 export type { OctetStringConstraints } from './codecs/OctetStringCodec';
+export { ObjectIdentifierCodec } from './codecs/ObjectIdentifierCodec';
 export { UTF8StringCodec } from './codecs/UTF8StringCodec';
 export type { CharStringConstraints, CharStringType } from './codecs/UTF8StringCodec';
 export { NullCodec } from './codecs/NullCodec';

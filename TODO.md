@@ -4,7 +4,6 @@ The ASN.1 schema parser (`src/parser/`) supports a practical subset of ASN.1 not
 
 ## Unsupported Types
 
-- **OBJECT IDENTIFIER** — Parsed but not encodable/decodable by PER codecs. Use `objectIdentifierHandling` option (`"omit"` or `"octetstring"`) as a workaround.
 - **REAL** — Floating-point type
 - **SET / SET OF** — Unordered collection types
 - **NumericString** — Digits and space only
