@@ -12,6 +12,11 @@ per-unaligned-ts is a TypeScript npm module for encoding and decoding ASN.1 PER 
 - `src/codecs/Codec.ts` - Base `Codec<T>` interface
 - `src/schema/SchemaBuilder.ts` - Builds codec trees from JSON `SchemaNode` definitions
 - `src/schema/SchemaCodec.ts` - High-level encode/decode with hex helpers
+- `src/parser/` - ASN.1 text notation parser (uses peggy PEG grammar)
+- `src/parser/AsnParser.ts` - Parses ASN.1 module text into an AST
+- `src/parser/toSchemaNode.ts` - Converts ASN.1 AST to `SchemaNode` for PER encoding/decoding
+- `src/parser/grammar.ts` - PEG grammar for ASN.1 notation subset
+- `src/parser/types.ts` - TypeScript types for the ASN.1 AST
 - `src/index.ts` - Public barrel exports
 - `tests/` - Jest unit tests mirroring the src structure
 - `website/` - React + TypeScript + TailwindCSS demo app (Vite, deployed to GitHub Pages)
@@ -44,3 +49,7 @@ per-unaligned-ts is a TypeScript npm module for encoding and decoding ASN.1 PER 
 
 - `.github/workflows/ci.yml` - Runs tests and build on every push/PR (Node 18, 20, 22)
 - `.github/workflows/deploy.yml` - Deploys `website/dist/` to GitHub Pages on push to `main`
+
+## Prompt history
+
+When editing this project, always read `PROMPT.md` first to understand the history of prompts and design decisions that shaped the codebase.
