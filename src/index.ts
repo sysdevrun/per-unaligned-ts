@@ -9,6 +9,7 @@ export { BitStringCodec } from './codecs/BitStringCodec';
 export type { BitStringValue, BitStringConstraints } from './codecs/BitStringCodec';
 export { OctetStringCodec } from './codecs/OctetStringCodec';
 export type { OctetStringConstraints } from './codecs/OctetStringCodec';
+export { ObjectIdentifierCodec } from './codecs/ObjectIdentifierCodec';
 export { UTF8StringCodec } from './codecs/UTF8StringCodec';
 export type { CharStringConstraints, CharStringType } from './codecs/UTF8StringCodec';
 export { NullCodec } from './codecs/NullCodec';
@@ -23,7 +24,6 @@ export type { SchemaNode } from './schema/SchemaBuilder';
 export { SchemaCodec } from './schema/SchemaCodec';
 export { parseAsn1Module } from './parser/AsnParser';
 export { convertModuleToSchemaNodes } from './parser/toSchemaNode';
-export type { ConvertOptions } from './parser/toSchemaNode';
 export type {
   AsnModule,
   AsnTypeAssignment,

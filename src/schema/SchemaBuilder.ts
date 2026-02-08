@@ -9,6 +9,7 @@ import { UTF8StringCodec } from '../codecs/UTF8StringCodec';
 import { ChoiceCodec } from '../codecs/ChoiceCodec';
 import { SequenceCodec } from '../codecs/SequenceCodec';
 import { SequenceOfCodec } from '../codecs/SequenceOfCodec';
+import { ObjectIdentifierCodec } from '../codecs/ObjectIdentifierCodec';
 
 /**
  * JSON-serializable schema definition for any ASN.1 type.
@@ -20,6 +21,7 @@ export type SchemaNode =
   | { type: 'ENUMERATED'; values: string[]; extensionValues?: string[] }
   | { type: 'BIT STRING'; fixedSize?: number; minSize?: number; maxSize?: number; extensible?: boolean }
   | { type: 'OCTET STRING'; fixedSize?: number; minSize?: number; maxSize?: number; extensible?: boolean }
+  | { type: 'OBJECT IDENTIFIER' }
   | {
       type: 'IA5String' | 'VisibleString' | 'UTF8String';
       alphabet?: string;
@@ -98,6 +100,9 @@ export class SchemaBuilder {
           maxSize: node.maxSize,
           extensible: node.extensible,
         });
+
+      case 'OBJECT IDENTIFIER':
+        return new ObjectIdentifierCodec();
 
       case 'IA5String':
       case 'VisibleString':

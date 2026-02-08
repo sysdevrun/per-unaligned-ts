@@ -3,11 +3,11 @@ import { convertModuleToSchemaNodes } from '../../src/parser/toSchemaNode';
 import type { SchemaNode } from '../../src/schema/SchemaBuilder';
 import { SchemaBuilder } from '../../src/schema/SchemaBuilder';
 
-function convertSingle(typeDef: string, options = {}): SchemaNode {
+function convertSingle(typeDef: string): SchemaNode {
   const mod = parseAsn1Module(
     `Test DEFINITIONS ::= BEGIN\n  TestType ::= ${typeDef}\nEND`,
   );
-  const schemas = convertModuleToSchemaNodes(mod, options);
+  const schemas = convertModuleToSchemaNodes(mod);
   return schemas['TestType'];
 }
 
@@ -43,6 +43,10 @@ describe('convertModuleToSchemaNodes', () => {
 
     it('converts UTF8String', () => {
       expect(convertSingle('UTF8String')).toEqual({ type: 'UTF8String' });
+    });
+
+    it('converts OBJECT IDENTIFIER', () => {
+      expect(convertSingle('OBJECT IDENTIFIER')).toEqual({ type: 'OBJECT IDENTIFIER' });
     });
   });
 
@@ -144,6 +148,24 @@ describe('convertModuleToSchemaNodes', () => {
         ],
         extensionFields: [],
       });
+    });
+
+    it('converts SEQUENCE with OBJECT IDENTIFIER fields', () => {
+      const mod = parseAsn1Module(`
+        Test DEFINITIONS ::= BEGIN
+          TestType ::= SEQUENCE {
+            name IA5String,
+            oid OBJECT IDENTIFIER OPTIONAL,
+            data OCTET STRING
+          }
+        END
+      `);
+      const schemas = convertModuleToSchemaNodes(mod);
+      const seq = schemas['TestType'] as { type: string; fields: Array<{ name: string; schema: { type: string }; optional?: boolean }> };
+      expect(seq.fields).toHaveLength(3);
+      expect(seq.fields[0]).toEqual({ name: 'name', schema: { type: 'IA5String' } });
+      expect(seq.fields[1]).toEqual({ name: 'oid', schema: { type: 'OBJECT IDENTIFIER' }, optional: true });
+      expect(seq.fields[2]).toEqual({ name: 'data', schema: { type: 'OCTET STRING' } });
     });
   });
 
@@ -256,36 +278,6 @@ describe('convertModuleToSchemaNodes', () => {
         END
       `);
       expect(() => convertModuleToSchemaNodes(mod)).toThrow('Unresolved type reference: UnknownType');
-    });
-  });
-
-  describe('OBJECT IDENTIFIER handling', () => {
-    it('throws by default on OBJECT IDENTIFIER', () => {
-      expect(() => convertSingle('OBJECT IDENTIFIER')).toThrow('OBJECT IDENTIFIER type is not supported');
-    });
-
-    it('substitutes OCTET STRING when objectIdentifierHandling is "octetstring"', () => {
-      const schema = convertSingle('OBJECT IDENTIFIER', {
-        objectIdentifierHandling: 'octetstring',
-      });
-      expect(schema).toEqual({ type: 'OCTET STRING' });
-    });
-
-    it('omits OBJECT IDENTIFIER fields when objectIdentifierHandling is "omit"', () => {
-      const mod = parseAsn1Module(`
-        Test DEFINITIONS ::= BEGIN
-          TestType ::= SEQUENCE {
-            name IA5String,
-            oid OBJECT IDENTIFIER OPTIONAL,
-            data OCTET STRING
-          }
-        END
-      `);
-      const schemas = convertModuleToSchemaNodes(mod, { objectIdentifierHandling: 'omit' });
-      const seq = schemas['TestType'] as { type: string; fields: Array<{ name: string }> };
-      expect(seq.fields).toHaveLength(2);
-      expect(seq.fields[0].name).toBe('name');
-      expect(seq.fields[1].name).toBe('data');
     });
   });
 
