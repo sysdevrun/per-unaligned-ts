@@ -46,6 +46,7 @@ export default function ProjectDescription() {
           <li>Schema-driven JSON encoding and decoding</li>
           <li>Default value support in SEQUENCE fields</li>
           <li>Extension marker support for forward compatibility</li>
+          <li>ASN.1 text notation parser (paste .asn files directly)</li>
         </ul>
       </div>
     </section>
