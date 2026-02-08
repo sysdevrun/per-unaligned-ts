@@ -10,3 +10,32 @@ every class is unit tested.
 a more high level part allows to configure a schema of combination of primitive types and allows to encode a JSON object (if object does not match the schema an exception is raised). when decoding an array buffer, a JSON object is returned.
 
 in the GitHub repository, add a react typescript tailwindcss website that will be published on the GitHub pages with ./ assets path. it describe the project, allows to configure a schema and either decode a hex encoded data or encode a JSON object. When building the website, it uses the npm module of the project
+
+## ASN.1 Schema Parser
+
+analyze how to create a schema that can be used to encode or decode a document.
+
+fetch https://github.com/UnionInternationalCheminsdeFer/UIC-barcode/blob/master/misc/uicBarcodeHeader_v2.0.1.asn
+
+add to the npm library a parser of asn schema notation. the parser must use a npm module for parsing. it outputs a schema that can be used by the per-unaligned-ts module. it is unit tested.
+
+the parser is run against the UIC schema to verify it works.
+if some constraints are not implemented yet, they are described in a TODO.md file.
+
+this prompt is added to the PROMPT.md file in a new section.
+in Claude md file, a statement is added to tell Claude to add the prompt file each time a prompt is given to edit the project.
+
+## Website ASN.1 Parser UI
+
+on the website, add an interface to use the schema parser. the output schema can then be used to encode or decode.
+
+## Fix CLAUDE.md prompt history instruction
+
+you added
+
+# Prompt history
+
+When editing this project, always read `PROMPT.md` first to understand the history of prompts and design decisions that shaped the codebase
+
+the goal is to append on every prompt the file so it's possible to get all the prompts used to generate the project.
+also add the two prompts of this conversation

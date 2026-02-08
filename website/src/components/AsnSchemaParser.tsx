@@ -1,0 +1,247 @@
+import { useState } from 'react';
+import { parseAsn1Module, convertModuleToSchemaNodes } from 'per-unaligned-ts';
+import type { SchemaNode, ConvertOptions } from 'per-unaligned-ts';
+
+interface AsnSchemaParserProps {
+  onSchemaSelect: (schemaText: string) => void;
+}
+
+const UIC_BARCODE_EXAMPLE = `ASN-Module-UicBarcodeHeader DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+UicBarcodeHeader ::= SEQUENCE {
+    format IA5String,
+    level2SignedData Level2DataType,
+    level2Signature OCTET STRING OPTIONAL
+}
+
+Level2DataType ::= SEQUENCE {
+    level1Data Level1DataType,
+    level1Signature OCTET STRING OPTIONAL,
+    level2Data DataType OPTIONAL
+}
+
+Level1DataType ::= SEQUENCE {
+    securityProviderNum INTEGER (1..32000) OPTIONAL,
+    securityProviderIA5 IA5String OPTIONAL,
+    keyId INTEGER (0..99999) OPTIONAL,
+    dataSequence SEQUENCE OF DataType,
+    level1KeyAlg OBJECT IDENTIFIER OPTIONAL,
+    level2KeyAlg OBJECT IDENTIFIER OPTIONAL,
+    level1SigningAlg OBJECT IDENTIFIER OPTIONAL,
+    level2SigningAlg OBJECT IDENTIFIER OPTIONAL,
+    level2PublicKey OCTET STRING OPTIONAL,
+    endOfValidityYear INTEGER (2016..2269) OPTIONAL,
+    endOfValidityDay INTEGER (1..366) OPTIONAL,
+    endOfValidityTime INTEGER (0..1439) OPTIONAL,
+    validityDuration INTEGER (1..3600) OPTIONAL
+}
+
+DataType ::= SEQUENCE {
+    dataFormat IA5String,
+    data OCTET STRING
+}
+
+END`;
+
+const SIMPLE_EXAMPLE = `SimpleProtocol DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+Message ::= SEQUENCE {
+    id INTEGER (0..255),
+    active BOOLEAN,
+    status Status
+}
+
+Status ::= ENUMERATED { pending, approved, rejected }
+
+END`;
+
+const CHOICE_EXAMPLE = `ChoiceDemo DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+Packet ::= SEQUENCE {
+    tag INTEGER (0..15),
+    payload Payload
+}
+
+Payload ::= CHOICE {
+    text IA5String,
+    number INTEGER (0..65535),
+    flag BOOLEAN
+}
+
+END`;
+
+const EXAMPLES = [
+  { label: 'Simple Protocol', text: SIMPLE_EXAMPLE },
+  { label: 'Choice Demo', text: CHOICE_EXAMPLE },
+  { label: 'UIC Barcode Header', text: UIC_BARCODE_EXAMPLE },
+];
+
+type OidHandling = ConvertOptions['objectIdentifierHandling'];
+
+export default function AsnSchemaParser({ onSchemaSelect }: AsnSchemaParserProps) {
+  const [asnText, setAsnText] = useState('');
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [typeNames, setTypeNames] = useState<string[]>([]);
+  const [schemas, setSchemas] = useState<Record<string, SchemaNode>>({});
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [oidHandling, setOidHandling] = useState<OidHandling>('omit');
+  const [conversionWarning, setConversionWarning] = useState<string | null>(null);
+
+  const handleParse = (text?: string) => {
+    const input = text ?? asnText;
+    setParseError(null);
+    setTypeNames([]);
+    setSchemas({});
+    setSelectedType(null);
+    setConversionWarning(null);
+
+    if (!input.trim()) {
+      setParseError('Enter ASN.1 notation to parse');
+      return;
+    }
+
+    try {
+      const module = parseAsn1Module(input);
+      const converted = convertModuleToSchemaNodes(module, {
+        objectIdentifierHandling: oidHandling,
+      });
+      const names = Object.keys(converted);
+      if (names.length === 0) {
+        setParseError('No type assignments found in module');
+        return;
+      }
+      setSchemas(converted);
+      setTypeNames(names);
+      setSelectedType(names[0]);
+
+      // Check if any OID fields were encountered
+      if (input.includes('OBJECT IDENTIFIER') && oidHandling === 'omit') {
+        setConversionWarning(
+          'OBJECT IDENTIFIER fields were omitted from the schema. Change handling mode below if needed.',
+        );
+      } else if (input.includes('OBJECT IDENTIFIER') && oidHandling === 'octetstring') {
+        setConversionWarning(
+          'OBJECT IDENTIFIER fields were substituted with OCTET STRING.',
+        );
+      }
+    } catch (e: unknown) {
+      setParseError(e instanceof Error ? e.message : 'Parse failed');
+    }
+  };
+
+  const handleUseSchema = () => {
+    if (selectedType && schemas[selectedType]) {
+      onSchemaSelect(JSON.stringify(schemas[selectedType], null, 2));
+    }
+  };
+
+  const handleExampleClick = (text: string) => {
+    setAsnText(text);
+    handleParse(text);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {EXAMPLES.map((ex) => (
+          <button
+            key={ex.label}
+            onClick={() => handleExampleClick(ex.text)}
+            className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100 transition-colors border border-indigo-200"
+          >
+            {ex.label}
+          </button>
+        ))}
+      </div>
+
+      <p className="text-xs text-gray-500">
+        Paste ASN.1 module notation below. Supports SEQUENCE, SEQUENCE OF, CHOICE, ENUMERATED,
+        INTEGER with constraints, string types, OPTIONAL, and type references.
+      </p>
+
+      <textarea
+        value={asnText}
+        onChange={(e) => setAsnText(e.target.value)}
+        spellCheck={false}
+        className={`w-full h-64 font-mono text-sm p-4 border rounded-lg resize-y focus:outline-none focus:ring-2 ${
+          parseError
+            ? 'border-red-300 focus:ring-red-300 bg-red-50'
+            : 'border-gray-300 focus:ring-indigo-300 bg-gray-50'
+        }`}
+        placeholder={`MyModule DEFINITIONS AUTOMATIC TAGS ::= BEGIN\n\n  MyType ::= SEQUENCE {\n    id INTEGER (0..255),\n    name IA5String\n  }\n\nEND`}
+      />
+
+      <div className="flex items-center gap-4 flex-wrap">
+        <button
+          onClick={() => handleParse()}
+          className="px-5 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"
+        >
+          Parse Module
+        </button>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-gray-600">OBJECT IDENTIFIER:</label>
+          <select
+            value={oidHandling}
+            onChange={(e) => setOidHandling(e.target.value as OidHandling)}
+            className="text-xs border border-gray-300 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-300"
+          >
+            <option value="omit">Omit fields</option>
+            <option value="octetstring">Treat as OCTET STRING</option>
+            <option value="error">Error</option>
+          </select>
+        </div>
+      </div>
+
+      {parseError && (
+        <p className="text-red-600 text-xs">{parseError}</p>
+      )}
+
+      {conversionWarning && (
+        <p className="text-amber-600 text-xs">{conversionWarning}</p>
+      )}
+
+      {typeNames.length > 0 && (
+        <div className="border border-gray-200 rounded-lg p-4 bg-gray-50 space-y-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <label className="text-sm font-medium text-gray-700">Select type:</label>
+            <div className="flex flex-wrap gap-2">
+              {typeNames.map((name) => (
+                <button
+                  key={name}
+                  onClick={() => setSelectedType(name)}
+                  className={`text-xs px-3 py-1.5 rounded border transition-colors ${
+                    selectedType === name
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                  }`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {selectedType && schemas[selectedType] && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Generated SchemaNode for {selectedType}:
+              </label>
+              <pre className="text-xs font-mono bg-white border border-gray-200 rounded p-3 overflow-auto max-h-48 text-gray-700">
+                {JSON.stringify(schemas[selectedType], null, 2)}
+              </pre>
+            </div>
+          )}
+
+          <button
+            onClick={handleUseSchema}
+            disabled={!selectedType}
+            className="px-5 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Use "{selectedType}" for Encode / Decode
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

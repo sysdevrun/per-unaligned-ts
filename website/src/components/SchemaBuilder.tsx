@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import AsnSchemaParser from './AsnSchemaParser';
+
 interface SchemaBuilderProps {
   schemaText: string;
   schemaError: string | null;
@@ -69,36 +72,67 @@ const EXAMPLE_SCHEMAS = [
 ];
 
 export default function SchemaBuilder({ schemaText, schemaError, onChange }: SchemaBuilderProps) {
+  const [mode, setMode] = useState<'json' | 'asn1'>('json');
+
   return (
     <section>
       <h2 className="text-xl font-semibold mb-4">Schema Definition</h2>
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <div className="flex flex-wrap gap-2 mb-4">
-          {EXAMPLE_SCHEMAS.map((ex) => (
-            <button
-              key={ex.label}
-              onClick={() => onChange(JSON.stringify(ex.schema, null, 2))}
-              className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100 transition-colors border border-indigo-200"
-            >
-              {ex.label}
-            </button>
-          ))}
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={() => setMode('json')}
+            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+              mode === 'json'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            JSON Schema
+          </button>
+          <button
+            onClick={() => setMode('asn1')}
+            className={`px-4 py-2 text-sm rounded-lg transition-colors ${
+              mode === 'asn1'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            ASN.1 Notation
+          </button>
         </div>
-        <p className="text-xs text-gray-500 mb-2">
-          Define your ASN.1 type schema as JSON. Use the examples above as templates.
-        </p>
-        <textarea
-          value={schemaText}
-          onChange={(e) => onChange(e.target.value)}
-          spellCheck={false}
-          className={`w-full h-64 font-mono text-sm p-4 border rounded-lg resize-y focus:outline-none focus:ring-2 ${
-            schemaError
-              ? 'border-red-300 focus:ring-red-300 bg-red-50'
-              : 'border-gray-300 focus:ring-indigo-300 bg-gray-50'
-          }`}
-        />
-        {schemaError && (
-          <p className="text-red-600 text-xs mt-2">Schema error: {schemaError}</p>
+
+        {mode === 'json' ? (
+          <>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {EXAMPLE_SCHEMAS.map((ex) => (
+                <button
+                  key={ex.label}
+                  onClick={() => onChange(JSON.stringify(ex.schema, null, 2))}
+                  className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100 transition-colors border border-indigo-200"
+                >
+                  {ex.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 mb-2">
+              Define your ASN.1 type schema as JSON. Use the examples above as templates.
+            </p>
+            <textarea
+              value={schemaText}
+              onChange={(e) => onChange(e.target.value)}
+              spellCheck={false}
+              className={`w-full h-64 font-mono text-sm p-4 border rounded-lg resize-y focus:outline-none focus:ring-2 ${
+                schemaError
+                  ? 'border-red-300 focus:ring-red-300 bg-red-50'
+                  : 'border-gray-300 focus:ring-indigo-300 bg-gray-50'
+              }`}
+            />
+            {schemaError && (
+              <p className="text-red-600 text-xs mt-2">Schema error: {schemaError}</p>
+            )}
+          </>
+        ) : (
+          <AsnSchemaParser onSchemaSelect={onChange} />
         )}
       </div>
     </section>

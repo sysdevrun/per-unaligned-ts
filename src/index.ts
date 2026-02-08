@@ -21,3 +21,13 @@ export type { SequenceOfConstraints } from './codecs/SequenceOfCodec';
 export { SchemaBuilder } from './schema/SchemaBuilder';
 export type { SchemaNode } from './schema/SchemaBuilder';
 export { SchemaCodec } from './schema/SchemaCodec';
+export { parseAsn1Module } from './parser/AsnParser';
+export { convertModuleToSchemaNodes } from './parser/toSchemaNode';
+export type { ConvertOptions } from './parser/toSchemaNode';
+export type {
+  AsnModule,
+  AsnTypeAssignment,
+  AsnType,
+  AsnField,
+  AsnConstraint,
+} from './parser/types';
