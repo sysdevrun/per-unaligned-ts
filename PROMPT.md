@@ -137,3 +137,6 @@ Plan what would be needed to implement signature verification for intercode6-ts 
 ## decodeWithMetadata plan
 
 Add a `decodeWithMetadata` method to every codec that returns a recursive tree of `DecodedNode` objects. Each node wraps the decoded value with metadata: bit position, bit length, raw bytes (Uint8Array), the codec instance that produced it, and schema-level flags (optional, present, default, extension). Store the codec in metadata so `stripMetadata` dispatches on `instanceof` — not by inspecting the value — and throws on unhandled codec types. Add `BitBuffer.extractBits(startBit, bitCount)` returning Uint8Array. Focus on exposing internals and raw field values, not on signature verification.
+## Simplify CLAUDE.md
+
+Simplify Claude file: list only directories, update list of directories. Emphasize that the intercode6-ts npm module is the main encoding/decoding library and usually doesn't require understanding low-level primitives in src directory. Examples in examples directory should be enough for most usage.
