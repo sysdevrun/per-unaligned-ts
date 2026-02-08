@@ -133,3 +133,7 @@ Read the CLI for decoding intercode6 tickets. Create in an intercode6-ts directo
 ## Signature verification plan
 
 Plan what would be needed to implement signature verification for intercode6-ts npm module, both for level 1 and level 2 signatures. Cover: extracting signed data bytes via PER re-encoding of sub-structures, OID-to-algorithm mapping, signature format conversion (raw to DER), public key handling (compressed/uncompressed EC points, SPKI wrapping), level 1 external key lookup interface, proposed API design, dependencies (node:crypto vs @noble/curves), edge cases, and testing strategy.
+
+## decodeWithMetadata plan
+
+Add a `decodeWithMetadata` method to every codec that returns a recursive tree of `DecodedNode` objects. Each node wraps the decoded value with metadata: bit position, bit length, raw bytes (Uint8Array), the codec instance that produced it, and schema-level flags (optional, present, default, extension). Store the codec in metadata so `stripMetadata` dispatches on `instanceof` — not by inspecting the value — and throws on unhandled codec types. Add `BitBuffer.extractBits(startBit, bitCount)` returning Uint8Array. Focus on exposing internals and raw field values, not on signature verification.
