@@ -58,3 +58,19 @@ id: 42, name world
 ## Test for decoding
 
 test for decoding
+
+## Schema versioning with extension marker
+
+new schemas:
+schema v1
+id : integer
+extension marker enabled
+
+schema v2
+id : integer
+extension marker
+name: ia5string
+
+objects to encode in round trip:
+id :42 , With v1 and v2
+id: 100, name: world, with v2. decode with v1 the output got from encoding from v2 too

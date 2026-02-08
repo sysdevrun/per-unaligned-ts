@@ -90,3 +90,78 @@ describe('Schema document encoding', () => {
     });
   });
 });
+
+describe('Schema versioning with extension marker', () => {
+  // v1: SEQUENCE { id INTEGER, ... }
+  const schemaV1: SchemaNode = {
+    type: 'SEQUENCE',
+    fields: [
+      { name: 'id', schema: { type: 'INTEGER', min: 0, max: 255 } },
+    ],
+    extensionFields: [],
+  };
+
+  // v2: SEQUENCE { id INTEGER, ..., name IA5String }
+  const schemaV2: SchemaNode = {
+    type: 'SEQUENCE',
+    fields: [
+      { name: 'id', schema: { type: 'INTEGER', min: 0, max: 255 } },
+    ],
+    extensionFields: [
+      { name: 'name', schema: { type: 'IA5String', minSize: 0, maxSize: 64 } },
+    ],
+  };
+
+  const codecV1 = new SchemaCodec(schemaV1);
+  const codecV2 = new SchemaCodec(schemaV2);
+
+  describe('encode {id: 42} with v1', () => {
+    it('round-trips with v1', () => {
+      const doc = { id: 42 };
+      const hex = codecV1.encodeToHex(doc);
+      console.log('v1 encode {id:42} hex:', hex);
+      const decoded = codecV1.decodeFromHex(hex);
+      expect(decoded).toEqual(doc);
+    });
+  });
+
+  describe('encode {id: 42} with v2', () => {
+    it('round-trips with v2 (no extension present)', () => {
+      const doc = { id: 42 };
+      const hex = codecV2.encodeToHex(doc);
+      console.log('v2 encode {id:42} hex:', hex);
+      const decoded = codecV2.decodeFromHex(hex);
+      expect(decoded).toEqual(doc);
+    });
+  });
+
+  describe('encode {id: 100, name: "world"} with v2', () => {
+    it('round-trips with v2', () => {
+      const doc = { id: 100, name: 'world' };
+      const hex = codecV2.encodeToHex(doc);
+      console.log('v2 encode {id:100,name:"world"} hex:', hex);
+      const decoded = codecV2.decodeFromHex(hex);
+      expect(decoded).toEqual(doc);
+    });
+
+    it('decodes with v1 (forward compatibility, unknown extensions skipped)', () => {
+      const doc = { id: 100, name: 'world' };
+      const hex = codecV2.encodeToHex(doc);
+      console.log('v2 encoded hex decoded by v1:', hex);
+
+      // v1 should decode the root field and silently skip the unknown extension
+      const decoded = codecV1.decodeFromHex(hex);
+      expect(decoded).toEqual({ id: 100 });
+    });
+  });
+
+  describe('v1 and v2 produce same encoding for root-only data', () => {
+    it('both encode {id: 42} identically when no extensions present', () => {
+      const doc = { id: 42 };
+      const hexV1 = codecV1.encodeToHex(doc);
+      const hexV2 = codecV2.encodeToHex(doc);
+      // Both are extensible, no extensions present -> same encoding
+      expect(hexV1).toEqual(hexV2);
+    });
+  });
+});
