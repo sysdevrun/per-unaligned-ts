@@ -110,3 +110,6 @@ Compile the Intercode ASN.1 types (IntercodeIssuingData, ProductRetailerData, Re
 ## UIC barcode header fixture test
 
 In tests fixtures, add uicbarcodeheader example of hex data. In e2e test directory, add new test that decodes the fixture using compiled schemas in schemas directory.
+## Regenerate UIC schemas with CLI tool
+
+Refetch the UIC ASN.1 schemas from GitHub and regenerate the SchemaNode JSON files. Create a reusable CLI tool in `cli/generate-schema.ts` that reads a local `.asn` file and outputs the corresponding `.schema.json`.
