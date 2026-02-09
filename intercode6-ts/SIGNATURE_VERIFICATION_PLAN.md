@@ -39,39 +39,47 @@ To verify a signature we need the exact bytes that were signed. These are the
 **canonical PER unaligned encoding** of `level1Data` (for level 1) and
 `level2SignedData` (for level 2).
 
-### Approach
+### Approach — `decodeWithMetadata`
 
-The header schema JSON (`uicBarcodeHeader_v1.schema.json`,
-`uicBarcodeHeader_v2.schema.json`) already exports standalone named types
-`Level1DataType` and `Level2DataType`. We can build codecs for these
-sub-structures and re-encode the decoded objects:
+The library now supports `decodeWithMetadata()` on every codec (including
+`SchemaCodec`). This returns a `DecodedNode` tree where each node carries a
+`FieldMeta` with:
+
+- `bitOffset` — start bit position in the source buffer
+- `bitLength` — number of bits consumed by the encoding
+- `rawBytes` — the exact original bytes extracted from the source buffer
+  (left-aligned, trailing bits zero-padded)
+
+Instead of the risky decode-then-re-encode path, we decode the header
+**once** with metadata and read the signed bytes directly from the tree:
 
 ```typescript
-// Build codecs for the sub-structures
-const schemas = HEADER_SCHEMAS[headerVersion];
-const codecs = SchemaBuilder.buildAll(schemas);
+import { SchemaCodec, type DecodedNode } from 'per-unaligned-ts';
 
-// Re-encode level1Data → bytes that were signed by level1Signature
-const level1DataCodec = new SchemaCodec(schemas.Level1DataType);
-const level1DataBytes = level1DataCodec.encode(header.level2SignedData.level1Data);
+const headerCodec = getHeaderCodec(headerVersion);
+const root: DecodedNode = headerCodec.decodeWithMetadata(bytes);
 
-// Re-encode level2SignedData → bytes that were signed by level2Signature
-const level2DataCodec = new SchemaCodec(schemas.Level2DataType);
-const level2SignedBytes = level2DataCodec.encode(header.level2SignedData);
+// Navigate the metadata tree (SEQUENCE fields are Record<string, DecodedNode>)
+const headerFields = root.value as Record<string, DecodedNode>;
+const level2SignedDataNode = headerFields.level2SignedData;
+
+const l2Fields = level2SignedDataNode.value as Record<string, DecodedNode>;
+const level1DataNode = l2Fields.level1Data;
+
+// Extract the exact original bytes — no re-encoding needed
+const level1DataBytes = level1DataNode.meta.rawBytes;   // signed by level1Signature
+const level2SignedBytes = level2SignedDataNode.meta.rawBytes; // signed by level2Signature
 ```
 
-### Verification Required
+### Why This Is Better Than Re-encoding
 
-Round-trip accuracy must be verified: decode a known barcode, re-encode the
-sub-structures, and confirm the bytes match the original PER encoding. This
-is critical because any bit-level difference will cause signature verification
-to fail.
-
-**Risk**: If the decoder normalizes or drops any optional fields during
-decoding, re-encoding could produce different bytes. The decoder must
-preserve the raw decoded object (not the typed extraction) for re-encoding.
-The current decoder already has access to the raw `header` object, so
-this should work.
+The previous approach (decode → re-encode) carried a critical risk: if any
+codec normalised, trimmed, or reordered data during decoding, the re-encoded
+bytes would differ from the original and signature verification would always
+fail. With `decodeWithMetadata`, the `rawBytes` are copied directly from
+the source buffer at the recorded bit offsets, so they are **byte-identical**
+to the original encoding by construction. No round-trip fidelity testing is
+needed.
 
 ---
 
@@ -334,11 +342,14 @@ const result3 = await verifySignatures(bytes, {
   may not be needed)
 
 ### Step 3: Signed data extraction (`src/signed-data.ts`)
-- `extractLevel1DataBytes(bytes, headerVersion)` — decode full header,
-  re-encode `level1Data` using `Level1DataType` schema
-- `extractLevel2SignedDataBytes(bytes, headerVersion)` — decode full header,
-  re-encode `level2SignedData` using `Level2DataType` schema
-- Round-trip tests to verify byte-exact re-encoding
+- `extractSignedDataBytes(bytes, headerVersion)` — decode header via
+  `headerCodec.decodeWithMetadata(bytes)`, then navigate the `DecodedNode`
+  tree to extract `rawBytes` from the `level1Data` and `level2SignedData`
+  nodes.  Returns `{ level1DataBytes, level2SignedBytes }`.
+- Also extracts the decoded security fields (algorithm OIDs, embedded
+  public key, signatures) from the same metadata tree using `stripMetadata`.
+- No re-encoding or round-trip verification needed — bytes come directly
+  from the source buffer.
 
 ### Step 4: Verification functions (`src/verifier.ts`)
 - `verifyLevel1Signature(bytes, publicKey)` — extract level1Data bytes,
@@ -354,7 +365,8 @@ const result3 = await verifySignatures(bytes, {
 ### Step 6: Tests
 - Unit tests for OID mapping
 - Unit tests for rawToDer conversion with known vectors
-- Round-trip tests for signed data extraction (decode → re-encode → compare)
+- Tests for signed data extraction via `decodeWithMetadata` (verify `rawBytes`
+  offsets and lengths match expected sub-structure boundaries)
 - Integration tests with real barcode samples (requires known-good keys)
 - Test error cases (missing signatures, unknown algorithms, invalid keys)
 
@@ -396,8 +408,9 @@ Use `@noble/curves` (or `@noble/secp256k1` / `@noble/hashes`) for:
    inferring from key algorithm + signature size.
 
 3. **Header version differences**: v1 and v2 have different `Level1DataType`
-   schemas (v2 adds validity fields). The correct schema must be used for
-   re-encoding.
+   schemas (v2 adds validity fields). The correct header schema must be
+   used when calling `decodeWithMetadata` so the metadata tree structure
+   matches the actual encoding.
 
 4. **EC point compression**: `level2PublicKey` can be compressed (33 bytes)
    or uncompressed (65 bytes). The crypto library must handle both.
@@ -412,12 +425,11 @@ Use `@noble/curves` (or `@noble/secp256k1` / `@noble/hashes`) for:
 7. **RSA support**: Some issuers may use RSA. RSA signatures and keys have
    variable sizes. PKCS#1 v1.5 vs PSS padding must be determined.
 
-8. **Re-encoding fidelity**: The PER re-encoding of decoded data must produce
-   byte-identical output. This is the highest-risk area. If any codec
-   normalizes values (e.g., trims leading zeros from integers, reorders
-   fields), verification will fail. The existing per-unaligned-ts library
-   should handle this correctly since PER is a canonical encoding, but it
-   must be tested.
+8. **~~Re-encoding fidelity~~ Eliminated**: Using `decodeWithMetadata`, the
+   signed bytes are extracted directly from the source buffer via
+   `rawBytes` in the metadata tree.  No re-encoding step exists, so
+   codec normalisation cannot cause mismatches.  This was the highest-risk
+   area in the original plan and is now a non-issue.
 
 ---
 
@@ -433,7 +445,7 @@ intercode6-ts/src/
 ├── fixtures.ts        # (unchanged)
 ├── oids.ts            # NEW: OID-to-algorithm mapping
 ├── signature-utils.ts # NEW: DER conversion, key import
-├── signed-data.ts     # NEW: extract PER-encoded sub-structures
+├── signed-data.ts     # NEW: extract signed bytes via decodeWithMetadata
 └── verifier.ts        # NEW: verification entry points
 
 intercode6-ts/tests/

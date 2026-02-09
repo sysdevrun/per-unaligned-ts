@@ -147,3 +147,7 @@ implement DECODE_WITH_METADATA_PLAN.md
 
 update Readme and examples to indicate how the new method works.
 add unit tests too
+
+## Update signature verification plan to use decodeWithMetadata
+
+Read last commit. Update plan in intercode6-ts to implement signature with the freshly implemented metadata method.
