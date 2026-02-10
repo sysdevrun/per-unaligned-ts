@@ -1,16 +1,15 @@
 /**
  * OID-to-algorithm mapping for UIC barcode signature verification.
  *
- * Only algorithms actually used in UIC barcode processes are included:
+ * Only algorithms actually used in FCB barcodes are included.
+ * FCB signatures are always structured (DER-encoded).
  *
- * | Process  | Algorithm            | Signature format |
- * |----------|----------------------|------------------|
- * | FCB V1   | SHA-1, DSA-1024      | Structured (DER) |
- * | FCB V2   | SHA-224, DSA-2048    | Raw (r‖s)        |
- * | FCB V2   | SHA-256, DSA-2048    | Raw (r‖s)        |
- * | DOSIPAS  | SHA-224, DSA-2048    | Structured (DER) |
- * | DOSIPAS  | SHA-256, DSA-2048    | Structured (DER) |
- * | DOSIPAS  | SHA-256, ECDSA-P256  | Structured (DER) |
+ * | Algorithm            |
+ * |----------------------|
+ * | DSA with SHA-1       |
+ * | DSA with SHA-224     |
+ * | DSA with SHA-256     |
+ * | ECDSA with SHA-256   |
  */
 
 export interface SigningAlgorithm {

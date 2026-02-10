@@ -14,7 +14,7 @@ import { verify, type KeyObject } from 'node:crypto';
 
 import { extractSignedData } from './signed-data';
 import { getSigningAlgorithm, getKeyAlgorithm } from './oids';
-import { importEcPublicKey, importSpkiPublicKey } from './signature-utils';
+import { importSpkiPublicKey } from './signature-utils';
 import type {
   SignatureVerificationResult,
   SingleVerificationResult,
@@ -27,24 +27,13 @@ import type {
 
 function resolvePublicKey(
   rawKey: Uint8Array | KeyObject,
-  keyAlgOid?: string,
 ): KeyObject {
   if (typeof rawKey === 'object' && 'type' in rawKey && (rawKey as KeyObject).asymmetricKeyType !== undefined) {
     return rawKey as KeyObject;
   }
 
-  const rawBytes = rawKey as Uint8Array;
-
-  // If the bytes start with 0x30 (SEQUENCE tag), it's already a DER-encoded
-  // SPKI structure — import directly. This handles both EC and DSA keys
-  // stored as full SPKI in the barcode (e.g. level2PublicKey).
-  if (rawBytes.length > 0 && rawBytes[0] === 0x30) {
-    return importSpkiPublicKey(rawBytes);
-  }
-
-  // Otherwise it's a raw EC point (uncompressed 0x04 or compressed 0x02/0x03)
-  // — wrap in SPKI for P-256.
-  return importEcPublicKey(rawBytes);
+  // Public keys in FCB barcodes are DER-encoded SPKI structures.
+  return importSpkiPublicKey(rawKey as Uint8Array);
 }
 
 // ---------------------------------------------------------------------------
@@ -92,7 +81,7 @@ export async function verifyLevel2Signature(
       return { valid: false, error: `Unknown level 2 key algorithm: ${keyAlgOid}` };
     }
 
-    const publicKey = resolvePublicKey(data.level2PublicKey, keyAlgOid);
+    const publicKey = resolvePublicKey(data.level2PublicKey);
     // FCB signatures are always structured (DER) — pass directly to verify
     const valid = verify(sigAlg.hash, data.level2SignedBytes, publicKey, Buffer.from(data.level2Signature));
 
@@ -136,7 +125,7 @@ export async function verifyLevel1Signature(
       };
     }
 
-    const resolved = resolvePublicKey(publicKey, data.level1KeyAlg);
+    const resolved = resolvePublicKey(publicKey);
     // FCB signatures are always structured (DER) — pass directly to verify
     const valid = verify(sigAlg.hash, data.level1DataBytes, resolved, Buffer.from(data.level1Signature));
 

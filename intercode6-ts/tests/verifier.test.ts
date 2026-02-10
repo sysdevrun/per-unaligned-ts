@@ -4,7 +4,7 @@ import {
   verifySignatures,
 } from '../src/verifier';
 import { extractSignedData } from '../src/signed-data';
-import { importEcPublicKey } from '../src/signature-utils';
+import { importSpkiPublicKey } from '../src/signature-utils';
 import { SAMPLE_TICKET_HEX, GRAND_EST_U1_FCB3_HEX } from '../src/fixtures';
 import {
   generateKeyPairSync,
@@ -136,7 +136,7 @@ describe('real ticket verification', () => {
 });
 
 describe('end-to-end DER signature verification', () => {
-  it('verifies an ECDSA-SHA256 DER signature with imported EC key', () => {
+  it('verifies an ECDSA-SHA256 DER signature with SPKI-imported EC key', () => {
     const { publicKey, privateKey } = generateKeyPairSync('ec', {
       namedCurve: 'P-256',
     });
@@ -145,10 +145,9 @@ describe('end-to-end DER signature verification', () => {
     // Node.js sign() returns DER by default — same format as FCB signatures
     const derSig = sign('SHA256', data, privateKey);
 
-    // Import via raw point (as the barcode stores it)
-    const spkiBuf = publicKey.export({ type: 'spki', format: 'der' });
-    const rawPoint = new Uint8Array(spkiBuf.subarray(spkiBuf.length - 65));
-    const importedKey = importEcPublicKey(rawPoint);
+    // Import via SPKI DER (as FCB barcodes store it)
+    const spkiDer = publicKey.export({ type: 'spki', format: 'der' });
+    const importedKey = importSpkiPublicKey(new Uint8Array(spkiDer));
 
     const valid = verify('SHA256', data, importedKey, derSig);
     expect(valid).toBe(true);

@@ -4,7 +4,7 @@ export { SAMPLE_TICKET_HEX, GRAND_EST_U1_FCB3_HEX } from './fixtures';
 export { verifySignatures, verifyLevel1Signature, verifyLevel2Signature } from './verifier';
 export { extractSignedData } from './signed-data';
 export { getSigningAlgorithm, getKeyAlgorithm } from './oids';
-export { importEcPublicKey, importSpkiPublicKey } from './signature-utils';
+export { importSpkiPublicKey } from './signature-utils';
 
 export type {
   UicBarcodeTicket,
