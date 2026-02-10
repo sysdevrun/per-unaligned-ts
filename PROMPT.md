@@ -151,3 +151,7 @@ add unit tests too
 ## Update signature verification plan to use decodeWithMetadata
 
 Read last commit. Update plan in intercode6-ts to implement signature with the freshly implemented metadata method.
+
+## Add Aztec code reader to website
+
+In the website, add an Aztec code reader library that allows to browse an image from the phone and decode it and convert it to hex encoded data, so hex encoded can be used as UIC ticket encoded data.
