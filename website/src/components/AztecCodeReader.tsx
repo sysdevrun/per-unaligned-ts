@@ -155,7 +155,6 @@ export default function AztecCodeReader({ onHexDecoded }: AztecCodeReaderProps) 
           ref={fileInputRef}
           type="file"
           accept="image/*"
-          capture="environment"
           onChange={handleInputChange}
           className="hidden"
         />
