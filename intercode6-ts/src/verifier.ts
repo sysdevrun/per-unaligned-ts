@@ -5,15 +5,21 @@
  * - Level 2: Uses the embedded level2PublicKey (self-contained).
  * - Level 1: Requires an externally provided public key (via options).
  *
- * Uses Node.js crypto for ECDSA/DSA/RSA signature verification.
+ * Handles both raw (r‖s) and structured (DER) signature formats:
+ * - FCB V1: structured (DER)
+ * - FCB V2: raw (r‖s)
+ * - DOSIPAS: structured (DER)
+ *
+ * Uses Node.js crypto for ECDSA/DSA signature verification.
  */
-import { verify, createPublicKey, type KeyObject } from 'node:crypto';
+import { verify, type KeyObject } from 'node:crypto';
 
 import { extractSignedData } from './signed-data';
 import { getSigningAlgorithm, getKeyAlgorithm } from './oids';
 import {
-  rawSignatureToDer,
+  ensureDerSignature,
   importEcPublicKey,
+  importSpkiPublicKey,
   validateEcSignatureSize,
 } from './signature-utils';
 import type {
@@ -32,14 +38,9 @@ function verifyWithCrypto(
   signature: Uint8Array,
   publicKey: KeyObject,
   hash: string,
-  sigType: string,
 ): boolean {
-  // For ECDSA/DSA, convert raw (r||s) to DER
-  let sig: Uint8Array = signature;
-  if (sigType === 'ECDSA' || sigType === 'DSA') {
-    sig = rawSignatureToDer(signature);
-  }
-
+  // Auto-detect raw vs DER and convert if needed
+  const sig = ensureDerSignature(signature);
   return verify(hash, data, publicKey, Buffer.from(sig));
 }
 
@@ -63,15 +64,11 @@ function resolvePublicKey(
   }
 
   if (keyAlg.type === 'EC') {
-    return importEcPublicKey(rawBytes, keyAlg.curve!);
+    return importEcPublicKey(rawBytes);
   }
 
-  // RSA: raw bytes should be DER-encoded SPKI
-  return createPublicKey({
-    key: Buffer.from(rawBytes),
-    format: 'der',
-    type: 'spki',
-  });
+  // DSA: raw bytes are DER-encoded SPKI
+  return importSpkiPublicKey(rawBytes);
 }
 
 // ---------------------------------------------------------------------------
@@ -121,9 +118,9 @@ export async function verifyLevel2Signature(
       return { valid: false, error: `Unknown level 2 key algorithm: ${keyAlgOid}` };
     }
 
-    // Validate signature size for EC curves
-    if (keyAlg.type === 'EC' && keyAlg.curve) {
-      const sizeError = validateEcSignatureSize(data.level2Signature, keyAlg.curve);
+    // Validate signature size for EC keys (only when raw format)
+    if (keyAlg.type === 'EC') {
+      const sizeError = validateEcSignatureSize(data.level2Signature);
       if (sizeError) {
         return { valid: false, error: sizeError };
       }
@@ -135,7 +132,6 @@ export async function verifyLevel2Signature(
       data.level2Signature,
       publicKey,
       sigAlg.hash,
-      sigAlg.type,
     );
 
     return { valid, algorithm: `${sigAlg.type} with ${sigAlg.hash}` };
@@ -178,12 +174,12 @@ export async function verifyLevel1Signature(
       };
     }
 
-    // Validate signature size for EC curves
+    // Validate signature size for EC keys (only when raw format)
     const keyAlgOid = data.level1KeyAlg;
     if (keyAlgOid) {
       const keyAlg = getKeyAlgorithm(keyAlgOid);
-      if (keyAlg?.type === 'EC' && keyAlg.curve) {
-        const sizeError = validateEcSignatureSize(data.level1Signature, keyAlg.curve);
+      if (keyAlg?.type === 'EC') {
+        const sizeError = validateEcSignatureSize(data.level1Signature);
         if (sizeError) {
           return { valid: false, error: sizeError };
         }
@@ -196,7 +192,6 @@ export async function verifyLevel1Signature(
       data.level1Signature,
       resolved,
       sigAlg.hash,
-      sigAlg.type,
     );
 
     return { valid, algorithm: `${sigAlg.type} with ${sigAlg.hash}` };

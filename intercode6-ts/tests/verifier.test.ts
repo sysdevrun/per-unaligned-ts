@@ -4,20 +4,13 @@ import {
   verifySignatures,
 } from '../src/verifier';
 import { extractSignedData } from '../src/signed-data';
-import { rawSignatureToDer, importEcPublicKey } from '../src/signature-utils';
+import { rawSignatureToDer, importEcPublicKey, ensureDerSignature } from '../src/signature-utils';
 import { SAMPLE_TICKET_HEX } from '../src/fixtures';
 import {
   generateKeyPairSync,
   sign,
-  createPublicKey,
-  type KeyObject,
+  verify,
 } from 'node:crypto';
-import {
-  SchemaCodec,
-  SchemaBuilder,
-  BitBuffer,
-  type SchemaNode,
-} from 'per-unaligned-ts';
 
 function hexToBytes(hex: string): Uint8Array {
   const clean = hex.replace(/\s+/g, '');
@@ -25,24 +18,18 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 describe('verifyLevel2Signature', () => {
-  it('returns valid:false with error for sample ticket (synthetic signatures)', async () => {
-    // The sample fixture has synthetic/placeholder signatures that won't be valid
+  it('returns valid:false for sample ticket (synthetic signatures)', async () => {
     const bytes = hexToBytes(SAMPLE_TICKET_HEX);
     const result = await verifyLevel2Signature(bytes);
-    // The signature exists but is not cryptographically valid for this synthetic data
     expect(result).toHaveProperty('valid');
     expect(typeof result.valid).toBe('boolean');
-    // We expect either false (invalid sig) or an error
     if (!result.valid && result.error) {
       expect(typeof result.error).toBe('string');
     }
   });
 
-  it('returns error when signature is missing', async () => {
-    // Build a minimal barcode with no level2Signature
-    // We'll reuse the sample but this test is about the error path
+  it('attempts verification when signature is present', async () => {
     const bytes = hexToBytes(SAMPLE_TICKET_HEX);
-    // The sample does have a signature, so it should attempt verification
     const result = await verifyLevel2Signature(bytes);
     expect(result).toHaveProperty('valid');
   });
@@ -50,16 +37,13 @@ describe('verifyLevel2Signature', () => {
 
 describe('verifyLevel1Signature', () => {
   it('returns error when no level 1 signing algorithm OID', async () => {
-    // The sample ticket may or may not have level1SigningAlg
     const bytes = hexToBytes(SAMPLE_TICKET_HEX);
     const data = extractSignedData(bytes);
 
-    // Create a dummy key
     const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
 
     const result = await verifyLevel1Signature(bytes, publicKey);
     expect(result).toHaveProperty('valid');
-    // If level1SigningAlg is missing, should get an error
     if (!data.level1SigningAlg) {
       expect(result.valid).toBe(false);
       expect(result.error).toContain('signing algorithm');
@@ -94,7 +78,6 @@ describe('verifySignatures', () => {
 
     expect(result).toHaveProperty('level1');
     expect(result).toHaveProperty('level2');
-    // Level 1 will likely fail (wrong key) but should not error on missing key
     if (result.level1.error) {
       expect(result.level1.error).not.toContain('No level 1 public key provided');
     }
@@ -133,17 +116,12 @@ describe('verifySignatures', () => {
 });
 
 describe('end-to-end signature verification with crafted data', () => {
-  // This test creates a real signature over known data and verifies it
-  // using the rawSignatureToDer and importEcPublicKey utilities
-
-  it('verifies a real ECDSA-SHA256 signature using the utility functions', () => {
+  it('verifies a real ECDSA-SHA256 raw signature using the utility functions', () => {
     const { publicKey, privateKey } = generateKeyPairSync('ec', {
       namedCurve: 'P-256',
     });
 
     const data = Buffer.from('the data that was signed');
-
-    // Sign with DER format (default)
     const derSig = sign('SHA256', data, privateKey);
 
     // Parse DER to extract raw r and s
@@ -167,21 +145,44 @@ describe('end-to-end signature verification with crafted data', () => {
     // Convert back to DER
     const reconvertedDer = rawSignatureToDer(rawSig);
 
-    // Get raw public key point
+    // Get raw public key point and import
     const spkiBuf = publicKey.export({ type: 'spki', format: 'der' });
     const rawPoint = new Uint8Array(spkiBuf.subarray(spkiBuf.length - 65));
+    const importedKey = importEcPublicKey(rawPoint);
 
-    // Import using our utility
-    const importedKey = importEcPublicKey(rawPoint, 'P-256');
+    const valid = verify('SHA256', data, importedKey, Buffer.from(reconvertedDer));
+    expect(valid).toBe(true);
+  });
 
-    // Verify
-    const { verify: cryptoVerify } = require('node:crypto');
-    const valid = cryptoVerify(
-      'SHA256',
-      data,
-      importedKey,
-      Buffer.from(reconvertedDer),
-    );
+  it('verifies a DER (structured) ECDSA signature via ensureDerSignature', () => {
+    const { publicKey, privateKey } = generateKeyPairSync('ec', {
+      namedCurve: 'P-256',
+    });
+
+    const data = Buffer.from('structured signature test');
+    // Node.js sign() returns DER by default
+    const derSig = sign('SHA256', data, privateKey);
+
+    // ensureDerSignature should pass DER through unchanged
+    const ensured = ensureDerSignature(new Uint8Array(derSig));
+
+    const valid = verify('SHA256', data, publicKey, Buffer.from(ensured));
+    expect(valid).toBe(true);
+  });
+
+  it('verifies a DSA signature via ensureDerSignature', () => {
+    const { publicKey, privateKey } = generateKeyPairSync('dsa', {
+      modulusLength: 2048,
+      divisorLength: 256,
+    });
+
+    const data = Buffer.from('DSA signature test');
+    const derSig = sign('SHA256', data, privateKey);
+
+    // DER signature should pass through
+    const ensured = ensureDerSignature(new Uint8Array(derSig));
+
+    const valid = verify('SHA256', data, publicKey, Buffer.from(ensured));
     expect(valid).toBe(true);
   });
 });
