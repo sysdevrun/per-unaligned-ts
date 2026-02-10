@@ -5,24 +5,17 @@
  * - Level 2: Uses the embedded level2PublicKey (self-contained).
  * - Level 1: Requires an externally provided public key (via options).
  *
- * Signature format is determined by header version:
- * - Header V1 (U1) → FCB V1 → structured (DER)
- * - Header V2 (U2) → FCB V2 / DOSIPAS → raw (r‖s)
+ * FCB signatures are always structured (DER-encoded), for both static
+ * barcodes (FCB V1/V2/V3) and dynamic barcodes (DOSIPAS).
  *
  * Uses Node.js crypto for ECDSA/DSA signature verification.
  */
 import { verify, type KeyObject } from 'node:crypto';
 
-import { extractSignedData, type ExtractedSignedData } from './signed-data';
+import { extractSignedData } from './signed-data';
 import { getSigningAlgorithm, getKeyAlgorithm } from './oids';
-import {
-  rawSignatureToDer,
-  importEcPublicKey,
-  importSpkiPublicKey,
-  validateEcSignatureSize,
-} from './signature-utils';
+import { importEcPublicKey, importSpkiPublicKey } from './signature-utils';
 import type {
-  Level1KeyProvider,
   SignatureVerificationResult,
   SingleVerificationResult,
   VerifyOptions,
@@ -32,34 +25,10 @@ import type {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Header V1 signatures are structured (DER), already accepted by Node.js.
- * Header V2 signatures are raw (r‖s), need conversion to DER.
- */
-function signatureToDer(signature: Uint8Array, headerVersion: number): Uint8Array {
-  if (headerVersion >= 2) {
-    return rawSignatureToDer(signature);
-  }
-  // V1: already DER
-  return signature;
-}
-
-function verifyWithCrypto(
-  data: Uint8Array,
-  signature: Uint8Array,
-  publicKey: KeyObject,
-  hash: string,
-  headerVersion: number,
-): boolean {
-  const sig = signatureToDer(signature, headerVersion);
-  return verify(hash, data, publicKey, Buffer.from(sig));
-}
-
 function resolvePublicKey(
   rawKey: Uint8Array | KeyObject,
   keyAlgOid?: string,
 ): KeyObject {
-  // Already a KeyObject
   if (typeof rawKey === 'object' && 'type' in rawKey && (rawKey as KeyObject).asymmetricKeyType !== undefined) {
     return rawKey as KeyObject;
   }
@@ -123,27 +92,13 @@ export async function verifyLevel2Signature(
     if (!keyAlgOid) {
       return { valid: false, error: 'Missing level 2 key algorithm OID' };
     }
-    const keyAlg = getKeyAlgorithm(keyAlgOid);
-    if (!keyAlg) {
+    if (!getKeyAlgorithm(keyAlgOid)) {
       return { valid: false, error: `Unknown level 2 key algorithm: ${keyAlgOid}` };
     }
 
-    // Validate raw signature size for EC keys (V2 only — V1 is DER)
-    if (keyAlg.type === 'EC' && data.headerVersion >= 2) {
-      const sizeError = validateEcSignatureSize(data.level2Signature);
-      if (sizeError) {
-        return { valid: false, error: sizeError };
-      }
-    }
-
     const publicKey = resolvePublicKey(data.level2PublicKey, keyAlgOid);
-    const valid = verifyWithCrypto(
-      data.level2SignedBytes,
-      data.level2Signature,
-      publicKey,
-      sigAlg.hash,
-      data.headerVersion,
-    );
+    // FCB signatures are always structured (DER) — pass directly to verify
+    const valid = verify(sigAlg.hash, data.level2SignedBytes, publicKey, Buffer.from(data.level2Signature));
 
     return { valid, algorithm: `${sigAlg.type} with ${sigAlg.hash}` };
   } catch (err) {
@@ -185,26 +140,9 @@ export async function verifyLevel1Signature(
       };
     }
 
-    // Validate raw signature size for EC keys (V2 only — V1 is DER)
-    const keyAlgOid = data.level1KeyAlg;
-    if (keyAlgOid && data.headerVersion >= 2) {
-      const keyAlg = getKeyAlgorithm(keyAlgOid);
-      if (keyAlg?.type === 'EC') {
-        const sizeError = validateEcSignatureSize(data.level1Signature);
-        if (sizeError) {
-          return { valid: false, error: sizeError };
-        }
-      }
-    }
-
-    const resolved = resolvePublicKey(publicKey, keyAlgOid);
-    const valid = verifyWithCrypto(
-      data.level1DataBytes,
-      data.level1Signature,
-      resolved,
-      sigAlg.hash,
-      data.headerVersion,
-    );
+    const resolved = resolvePublicKey(publicKey, data.level1KeyAlg);
+    // FCB signatures are always structured (DER) — pass directly to verify
+    const valid = verify(sigAlg.hash, data.level1DataBytes, resolved, Buffer.from(data.level1Signature));
 
     return { valid, algorithm: `${sigAlg.type} with ${sigAlg.hash}` };
   } catch (err) {

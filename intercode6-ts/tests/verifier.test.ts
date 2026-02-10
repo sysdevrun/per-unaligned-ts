@@ -4,7 +4,7 @@ import {
   verifySignatures,
 } from '../src/verifier';
 import { extractSignedData } from '../src/signed-data';
-import { rawSignatureToDer, importEcPublicKey, ensureDerSignature } from '../src/signature-utils';
+import { importEcPublicKey } from '../src/signature-utils';
 import { SAMPLE_TICKET_HEX } from '../src/fixtures';
 import {
   generateKeyPairSync,
@@ -115,62 +115,26 @@ describe('verifySignatures', () => {
   });
 });
 
-describe('end-to-end signature verification with crafted data', () => {
-  it('verifies a real ECDSA-SHA256 raw signature using the utility functions', () => {
-    const { publicKey, privateKey } = generateKeyPairSync('ec', {
-      namedCurve: 'P-256',
-    });
-
-    const data = Buffer.from('the data that was signed');
-    const derSig = sign('SHA256', data, privateKey);
-
-    // Parse DER to extract raw r and s
-    let pos = 2;
-    const rLen = derSig[pos + 1];
-    let r = derSig.subarray(pos + 2, pos + 2 + rLen);
-    pos += 2 + rLen;
-    const sLen = derSig[pos + 1];
-    let s = derSig.subarray(pos + 2, pos + 2 + sLen);
-
-    // Strip DER padding and pad to 32 bytes
-    if (r.length > 32 && r[0] === 0) r = r.subarray(1);
-    if (s.length > 32 && s[0] === 0) s = s.subarray(1);
-    const rPadded = new Uint8Array(32);
-    rPadded.set(r, 32 - r.length);
-    const sPadded = new Uint8Array(32);
-    sPadded.set(s, 32 - s.length);
-
-    const rawSig = new Uint8Array([...rPadded, ...sPadded]);
-
-    // Convert back to DER
-    const reconvertedDer = rawSignatureToDer(rawSig);
-
-    // Get raw public key point and import
-    const spkiBuf = publicKey.export({ type: 'spki', format: 'der' });
-    const rawPoint = new Uint8Array(spkiBuf.subarray(spkiBuf.length - 65));
-    const importedKey = importEcPublicKey(rawPoint);
-
-    const valid = verify('SHA256', data, importedKey, Buffer.from(reconvertedDer));
-    expect(valid).toBe(true);
-  });
-
-  it('verifies a DER (structured) ECDSA signature via ensureDerSignature', () => {
+describe('end-to-end DER signature verification', () => {
+  it('verifies an ECDSA-SHA256 DER signature with imported EC key', () => {
     const { publicKey, privateKey } = generateKeyPairSync('ec', {
       namedCurve: 'P-256',
     });
 
     const data = Buffer.from('structured signature test');
-    // Node.js sign() returns DER by default
+    // Node.js sign() returns DER by default — same format as FCB signatures
     const derSig = sign('SHA256', data, privateKey);
 
-    // ensureDerSignature should pass DER through unchanged
-    const ensured = ensureDerSignature(new Uint8Array(derSig));
+    // Import via raw point (as the barcode stores it)
+    const spkiBuf = publicKey.export({ type: 'spki', format: 'der' });
+    const rawPoint = new Uint8Array(spkiBuf.subarray(spkiBuf.length - 65));
+    const importedKey = importEcPublicKey(rawPoint);
 
-    const valid = verify('SHA256', data, publicKey, Buffer.from(ensured));
+    const valid = verify('SHA256', data, importedKey, derSig);
     expect(valid).toBe(true);
   });
 
-  it('verifies a DSA signature via ensureDerSignature', () => {
+  it('verifies a DSA-SHA256 DER signature', () => {
     const { publicKey, privateKey } = generateKeyPairSync('dsa', {
       modulusLength: 2048,
       divisorLength: 256,
@@ -179,10 +143,7 @@ describe('end-to-end signature verification with crafted data', () => {
     const data = Buffer.from('DSA signature test');
     const derSig = sign('SHA256', data, privateKey);
 
-    // DER signature should pass through
-    const ensured = ensureDerSignature(new Uint8Array(derSig));
-
-    const valid = verify('SHA256', data, publicKey, Buffer.from(ensured));
+    const valid = verify('SHA256', data, publicKey, derSig);
     expect(valid).toBe(true);
   });
 });
