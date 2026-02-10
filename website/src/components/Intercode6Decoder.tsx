@@ -201,10 +201,31 @@ function TicketDisplay({ ticket }: { ticket: UicBarcodeTicket }) {
   );
 }
 
-export default function Intercode6Decoder() {
+interface Intercode6DecoderProps {
+  initialHex?: string;
+  onConsumeInitialHex?: () => void;
+}
+
+export default function Intercode6Decoder({ initialHex, onConsumeInitialHex }: Intercode6DecoderProps) {
   const [hexInput, setHexInput] = useState('');
   const [ticket, setTicket] = useState<UicBarcodeTicket | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [consumedHex, setConsumedHex] = useState<string | undefined>(undefined);
+
+  // Auto-decode when initialHex is provided from Aztec reader
+  if (initialHex && initialHex !== consumedHex) {
+    setConsumedHex(initialHex);
+    setHexInput(initialHex);
+    setError(null);
+    setTicket(null);
+    try {
+      const decoded = decodeTicket(initialHex);
+      setTicket(decoded);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Decoding failed');
+    }
+    onConsumeInitialHex?.();
+  }
 
   const handleDecode = (hex?: string) => {
     const input = hex ?? hexInput;
