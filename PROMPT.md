@@ -165,7 +165,6 @@ Prepare everything needed to publish the asn1-per-ts package as npm module on np
 project has been renamed from per-unaligned-ts to asn1-per-ts.
 rename project name everywhere
 
-<<<<<<< HEAD
 ## Add SNCF TER ticket
 
 in website and in fixtures, add this SNCF TER ticket
@@ -184,3 +183,10 @@ add this one as CTS
 ## Add signature verification to intercode6-ts
 
 Implement signature verification for UIC barcode tickets in the intercode6-ts module, following the existing SIGNATURE_VERIFICATION_PLAN.md. Use @noble/curves for cross-platform ECDSA verification (Node.js + browser). Ensure code works in both website and npm for intercode6-ts module.
+
+## Implement signature verification
+
+Implement signature verification for intercode6-ts:
+- add a method to tell if signature linked to dynamic version is present
+- add a method that verify the signature linked to dynamic version
+- add a method to verify signature linked to public key that is provided externally. this method accepts the public key
