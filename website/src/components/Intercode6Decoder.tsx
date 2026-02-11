@@ -1,16 +1,22 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   decodeTicket,
+  verifyLevel2Signature,
   SAMPLE_TICKET_HEX,
   SNCF_TER_TICKET_HEX,
   SOLEA_TICKET_HEX,
   CTS_TICKET_HEX,
   GRAND_EST_U1_FCB3_HEX,
 } from 'intercode6-ts';
-import type { UicBarcodeTicket } from 'intercode6-ts';
+import type { UicBarcodeTicket, SignatureLevelResult } from 'intercode6-ts';
 
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  const clean = hex.replace(/\s+/g, '').replace(/h$/i, '').toLowerCase();
+  return new Uint8Array(clean.match(/.{1,2}/g)!.map(b => parseInt(b, 16)));
 }
 
 function formatDate(year: number, day: number): string {
@@ -57,7 +63,41 @@ function BytesField({ label, bytes }: { label: string; bytes?: Uint8Array }) {
   );
 }
 
-function TicketDisplay({ ticket }: { ticket: UicBarcodeTicket }) {
+function SignatureStatus({ label, result }: { label: string; result?: SignatureLevelResult | null }) {
+  if (!result) return null;
+  return (
+    <div className="flex gap-2 items-start">
+      <span className="text-gray-500 min-w-[180px]">{label}:</span>
+      <span className="flex items-center gap-2">
+        {result.valid ? (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+            Valid
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+            Invalid
+          </span>
+        )}
+        {result.algorithm && (
+          <span className="text-xs text-gray-500 font-mono">{result.algorithm}</span>
+        )}
+        {result.error && (
+          <span className="text-xs text-red-500">{result.error}</span>
+        )}
+      </span>
+    </div>
+  );
+}
+
+function TicketDisplay({
+  ticket,
+  signatureResult,
+  verifying,
+}: {
+  ticket: UicBarcodeTicket;
+  signatureResult?: SignatureLevelResult | null;
+  verifying: boolean;
+}) {
   return (
     <div className="space-y-4">
       <Section title="Header">
@@ -66,7 +106,7 @@ function TicketDisplay({ ticket }: { ticket: UicBarcodeTicket }) {
         <BytesField label="Level 2 signature" bytes={ticket.level2Signature} />
       </Section>
 
-      <Section title="Security">
+      <Section title="Security & Signature Verification">
         <Field label="Security provider" value={ticket.security.securityProviderNum} />
         <Field label="Key ID" value={ticket.security.keyId} />
         <Field label="Level 1 key algorithm" value={ticket.security.level1KeyAlg} />
@@ -75,6 +115,23 @@ function TicketDisplay({ ticket }: { ticket: UicBarcodeTicket }) {
         <Field label="Level 2 signing algorithm" value={ticket.security.level2SigningAlg} />
         <BytesField label="Level 2 public key" bytes={ticket.security.level2PublicKey} />
         <BytesField label="Level 1 signature" bytes={ticket.security.level1Signature} />
+
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <div className="text-xs font-semibold text-indigo-600 uppercase tracking-wide mb-2">
+            Signature Verification
+          </div>
+          {verifying ? (
+            <div className="text-xs text-gray-500">Verifying signatures...</div>
+          ) : (
+            <>
+              <SignatureStatus label="Level 2 (embedded key)" result={signatureResult} />
+              <div className="flex gap-2 items-start mt-1">
+                <span className="text-gray-500 min-w-[180px]">Level 1 (external key):</span>
+                <span className="text-xs text-gray-400">Requires external public key</span>
+              </div>
+            </>
+          )}
+        </div>
       </Section>
 
       {ticket.railTickets.map((rt, i) => (
@@ -215,6 +272,40 @@ export default function Intercode6Decoder({ initialHex, onConsumeInitialHex }: I
   const [ticket, setTicket] = useState<UicBarcodeTicket | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [consumedHex, setConsumedHex] = useState<string | undefined>(undefined);
+  const [signatureResult, setSignatureResult] = useState<SignatureLevelResult | null>(null);
+  const [verifying, setVerifying] = useState(false);
+
+  // Run signature verification when ticket changes
+  useEffect(() => {
+    if (!ticket) {
+      setSignatureResult(null);
+      return;
+    }
+
+    let cancelled = false;
+    setVerifying(true);
+
+    const hex = hexInput.replace(/\s+/g, '').replace(/h$/i, '').toLowerCase();
+    if (!hex || hex.length % 2 !== 0) {
+      setVerifying(false);
+      return;
+    }
+
+    const bytes = hexToBytes(hex);
+    verifyLevel2Signature(bytes).then((result) => {
+      if (!cancelled) {
+        setSignatureResult(result);
+        setVerifying(false);
+      }
+    }).catch(() => {
+      if (!cancelled) {
+        setSignatureResult({ valid: false, error: 'Verification failed unexpectedly' });
+        setVerifying(false);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [ticket, hexInput]);
 
   // Auto-decode when initialHex is provided from Aztec reader
   if (initialHex && initialHex !== consumedHex) {
@@ -235,6 +326,7 @@ export default function Intercode6Decoder({ initialHex, onConsumeInitialHex }: I
     const input = hex ?? hexInput;
     setError(null);
     setTicket(null);
+    setSignatureResult(null);
     try {
       if (!input.trim()) {
         setError('Enter hex data to decode');
@@ -314,7 +406,13 @@ export default function Intercode6Decoder({ initialHex, onConsumeInitialHex }: I
           </div>
         )}
 
-        {ticket && <TicketDisplay ticket={ticket} />}
+        {ticket && (
+          <TicketDisplay
+            ticket={ticket}
+            signatureResult={signatureResult}
+            verifying={verifying}
+          />
+        )}
       </div>
     </section>
   );

@@ -165,6 +165,7 @@ Prepare everything needed to publish the asn1-per-ts package as npm module on np
 project has been renamed from per-unaligned-ts to asn1-per-ts.
 rename project name everywhere
 
+<<<<<<< HEAD
 ## Add SNCF TER ticket
 
 in website and in fixtures, add this SNCF TER ticket
@@ -179,3 +180,7 @@ add this one as Soléa
 
 add this one as CTS
 815565dff8e76000380824687099c04fb90101cec142a8944195c6a5264b13249250915fc0048100004080494a6b305ce6fb96edb2b9c2c9aadc9859385ad32b972b5cb964e16e170cb2e4ccd333572c9980014121a9b189a191b1b32169b9a9a9c969a333230969c9931b216b3321c9c9a199a9c9818b21b89500124224806ec929042400590024010064a012321a6102006a00020030010008000350531311548814d2535413114801022214000004154324671e81808384154324671e81808384154324671e82018104154324671e8201811081479ea31897b4f48c0807462750e9fdb93688c1388ba7dd2036ecbf044e226cb9050aa43095a4182301108044ba579cec8a293c2d908fa4f6171b181595b9f61dccfae6dd2f8dfae4f3e5b90110807a3419bd5b3be394d21db00e46f98f864e4c91df2b88d673904a1e0fccd951a58246890d88c302b9b92ec7d39aee7d3961e78b7f5e59d775cfbc55017602398228110153cf8041bb028f8107570846874ca818a6560ce262c0124df25a987611286658110805006c02f828f7e689858bdbb5f884b4db1376813211fb01269a22375748b47d18
+
+## Add signature verification to intercode6-ts
+
+Implement signature verification for UIC barcode tickets in the intercode6-ts module, following the existing SIGNATURE_VERIFICATION_PLAN.md. Use @noble/curves for cross-platform ECDSA verification (Node.js + browser). Ensure code works in both website and npm for intercode6-ts module.
