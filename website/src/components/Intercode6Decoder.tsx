@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   decodeTicket,
   SAMPLE_TICKET_HEX,
+  SNCF_TER_TICKET_HEX,
   GRAND_EST_U1_FCB3_HEX,
 } from 'intercode6-ts';
 import type { UicBarcodeTicket } from 'intercode6-ts';
@@ -263,6 +264,12 @@ export default function Intercode6Decoder({ initialHex, onConsumeInitialHex }: I
             className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100 transition-colors border border-indigo-200"
           >
             Sample FCB2
+          </button>
+          <button
+            onClick={() => handleLoadPreset(SNCF_TER_TICKET_HEX)}
+            className="text-xs px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100 transition-colors border border-indigo-200"
+          >
+            SNCF TER
           </button>
           <button
             onClick={() => handleLoadPreset(GRAND_EST_U1_FCB3_HEX)}
