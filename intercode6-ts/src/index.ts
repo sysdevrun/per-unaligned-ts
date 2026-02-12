@@ -1,6 +1,6 @@
 export { decodeTicket, decodeTicketFromBytes } from './decoder';
 export { encodeTicket, encodeTicketToBytes } from './encoder';
-export { SAMPLE_TICKET_HEX, GRAND_EST_U1_FCB3_HEX } from './fixtures';
+export { SAMPLE_TICKET_HEX, SNCF_TER_TICKET_HEX, SOLEA_TICKET_HEX, CTS_TICKET_HEX, GRAND_EST_U1_FCB3_HEX } from './fixtures';
 
 export type {
   UicBarcodeTicket,
