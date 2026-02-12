@@ -190,3 +190,7 @@ Implement signature verification for intercode6-ts:
 - add a method to tell if signature linked to dynamic version is present
 - add a method that verify the signature linked to dynamic version
 - add a method to verify signature linked to public key that is provided externally. this method accepts the public key
+
+## Add UIC key provider and signature verification improvements
+
+implement a callback that fetches the public key and select the good one, from https://railpublickey.uic.org/download.php. rebase against origin main. verify signatures of the new tickets in fixtures.
