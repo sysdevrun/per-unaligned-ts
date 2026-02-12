@@ -19,6 +19,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { SchemaCodec } from '../src/schema/SchemaCodec';
 import { SchemaBuilder, type SchemaNode } from '../src/schema/SchemaBuilder';
 import { BitBuffer } from '../src/BitBuffer';
@@ -27,6 +28,9 @@ import { Codec } from '../src/codecs/Codec';
 // ---------------------------------------------------------------------------
 // Schema paths and version maps
 // ---------------------------------------------------------------------------
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const SCHEMAS_DIR = path.join(__dirname, '..', 'schemas', 'uic-barcode');
 
