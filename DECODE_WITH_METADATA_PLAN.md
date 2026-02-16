@@ -450,8 +450,6 @@ if (codec instanceof SequenceCodec) {
 
 ### Phase 5: Exports and integration
 13. Update `src/codecs/index.ts` and `src/index.ts`
-14. Update `intercode6-ts` to use metadata API if desired
-
 ---
 
 ## Scope estimate

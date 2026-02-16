@@ -456,4 +456,3 @@ try {
 | `src/codecs/ChoiceCodec.ts` | `ChoiceCodec` with extension support |
 | `src/codecs/SequenceCodec.ts` | `SequenceCodec` with OPTIONAL/DEFAULT fields |
 | `src/codecs/SequenceOfCodec.ts` | `SequenceOfCodec` with size constraints |
-| `cli/decode-uic-barcode.ts` | CLI tool showing real-world encoding/decoding |

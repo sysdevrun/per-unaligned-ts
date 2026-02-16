@@ -282,17 +282,6 @@ const codec = new SchemaCodec(schema);
 
 See `src/schema/SchemaBuilder.ts` for the full `SchemaNode` type definition.
 
-## Pre-generated Schemas
-
-The `schemas/uic-barcode/` directory contains pre-generated `SchemaNode` JSON files from real-world ASN.1 specifications (UIC barcode headers, rail ticket data, Intercode 6). These can be loaded and used directly:
-
-```typescript
-import headerSchemas from './schemas/uic-barcode/uicBarcodeHeader_v1.schema.json';
-import { SchemaCodec, type SchemaNode } from 'asn1-per-ts';
-
-const codec = new SchemaCodec(headerSchemas.UicBarcodeHeader as unknown as SchemaNode);
-```
-
 ## Related Files
 
 | File | Description |
@@ -304,4 +293,3 @@ const codec = new SchemaCodec(headerSchemas.UicBarcodeHeader as unknown as Schem
 | `src/schema/SchemaBuilder.ts` | `SchemaBuilder.build()` / `buildAll()` - builds codecs from SchemaNode |
 | `src/schema/SchemaCodec.ts` | `SchemaCodec` - high-level encode/decode with hex helpers |
 | `cli/generate-schema.ts` | CLI tool to convert `.asn` files to `.schema.json` |
-| `schemas/uic-barcode/` | Pre-generated SchemaNode JSON files |

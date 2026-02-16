@@ -161,14 +161,30 @@ describe('OBJECT IDENTIFIER end-to-end', () => {
     });
   });
 
-  describe('UIC barcode schema with native OID', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const asnText = fs.readFileSync(
-      path.join(__dirname, '..', 'fixtures', 'uicBarcodeHeader_v2.0.1.asn'),
-      'utf-8',
-    );
-    const mod = parseAsn1Module(asnText);
+  describe('Complex schema with native OID', () => {
+    const mod = parseAsn1Module(`
+      Test DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+        HeaderInfo ::= SEQUENCE {
+          providerId INTEGER (1..32000) OPTIONAL,
+          providerName IA5String OPTIONAL,
+          keyId INTEGER (0..255),
+          dataBlocks SEQUENCE OF DataBlock,
+          keyAlg OBJECT IDENTIFIER OPTIONAL,
+          signingAlg OBJECT IDENTIFIER OPTIONAL,
+          encryptionAlg OBJECT IDENTIFIER OPTIONAL,
+          verificationAlg OBJECT IDENTIFIER OPTIONAL,
+          publicKey OCTET STRING OPTIONAL,
+          expiryYear INTEGER (2000..2200) OPTIONAL,
+          expiryDay INTEGER (1..366) OPTIONAL,
+          expiryMinute INTEGER (0..1439) OPTIONAL,
+          validMinutes INTEGER (0..525600) OPTIONAL
+        }
+        DataBlock ::= SEQUENCE {
+          blockType IA5String,
+          data OCTET STRING
+        }
+      END
+    `);
     const schemas = convertModuleToSchemaNodes(mod);
 
     it('builds all codecs including native OID fields', () => {
@@ -178,35 +194,36 @@ describe('OBJECT IDENTIFIER end-to-end', () => {
       }
     });
 
-    it('round-trips Level1DataType with OID fields', () => {
-      const codec = new SchemaCodec(schemas['Level1DataType']);
+    it('round-trips HeaderInfo with OID fields', () => {
+      const codec = new SchemaCodec(schemas['HeaderInfo']);
       const value = {
-        securityProviderNum: 1234,
-        securityProviderIA5: 'SNCF',
+        providerId: 1234,
+        providerName: 'TestProvider',
         keyId: 42,
-        dataSequence: [
-          { dataFormat: 'U_FLEX', data: new Uint8Array([0x01, 0x02]) },
+        dataBlocks: [
+          { blockType: 'FLEX', data: new Uint8Array([0x01, 0x02]) },
         ],
-        level1KeyAlg: '1.2.840.113549.1.1.1',
-        level2KeyAlg: '1.2.840.10045.2.1',
-        level1SigningAlg: '1.2.840.113549.1.1.11',
-        level2SigningAlg: '1.2.840.10045.4.3.2',
-        level2PublicKey: new Uint8Array([0xAA, 0xBB]),
-        endOfValidityYear: 2025,
-        endOfValidityDay: 180,
-        endOfValidityTime: 720,
-        validityDuration: 60,
+        keyAlg: '1.2.840.113549.1.1.1',
+        signingAlg: '1.2.840.10045.2.1',
+        encryptionAlg: '1.2.840.113549.1.1.11',
+        verificationAlg: '1.2.840.10045.4.3.2',
+        publicKey: new Uint8Array([0xAA, 0xBB]),
+        expiryYear: 2025,
+        expiryDay: 180,
+        expiryMinute: 720,
+        validMinutes: 60,
       };
       const encoded = codec.encode(value);
       const decoded = codec.decode(encoded);
       expect(decoded).toEqual(value);
     });
 
-    it('round-trips Level1DataType with OID fields omitted (optional)', () => {
-      const codec = new SchemaCodec(schemas['Level1DataType']);
+    it('round-trips HeaderInfo with OID fields omitted (optional)', () => {
+      const codec = new SchemaCodec(schemas['HeaderInfo']);
       const value = {
-        dataSequence: [
-          { dataFormat: 'U_FLEX', data: new Uint8Array([0x01]) },
+        keyId: 0,
+        dataBlocks: [
+          { blockType: 'FLEX', data: new Uint8Array([0x01]) },
         ],
       };
       const encoded = codec.encode(value);

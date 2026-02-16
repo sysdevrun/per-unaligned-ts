@@ -11,5 +11,5 @@
       "asn1-per-ts": ["../src/index.ts"]
     }
   },
-  "include": ["./*.ts", "../intercode6-ts/src/**/*.ts", "../src/**/*.ts"]
+  "include": ["./*.ts", "../src/**/*.ts"]
 }
