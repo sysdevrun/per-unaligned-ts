@@ -1,23 +1,57 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import { parseAsn1Module } from '../../src/parser/AsnParser';
 import { convertModuleToSchemaNodes } from '../../src/parser/toSchemaNode';
 import { SchemaBuilder } from '../../src/schema/SchemaBuilder';
 import type { AsnModule, AsnSequenceType, AsnSequenceOfType, AsnConstrainedType } from '../../src/parser/types';
 
-const FIXTURE_PATH = path.join(__dirname, '..', 'fixtures', 'uicBarcodeHeader_v2.0.1.asn');
-const asnText = fs.readFileSync(FIXTURE_PATH, 'utf-8');
+const ASN_TEXT = `
+SampleProtocol DEFINITIONS AUTOMATIC TAGS ::= BEGIN
 
-describe('UIC Barcode Header schema', () => {
+  Envelope ::= SEQUENCE {
+    version IA5String,
+    payload SignedPayload,
+    checksum OCTET STRING OPTIONAL
+  }
+
+  SignedPayload ::= SEQUENCE {
+    header HeaderInfo,
+    signature OCTET STRING,
+    body DataBlock
+  }
+
+  HeaderInfo ::= SEQUENCE {
+    providerId INTEGER (1..32000) OPTIONAL,
+    providerName IA5String OPTIONAL,
+    keyId INTEGER (0..255),
+    dataBlocks SEQUENCE OF DataBlock,
+    keyAlg OBJECT IDENTIFIER OPTIONAL,
+    signingAlg OBJECT IDENTIFIER OPTIONAL,
+    encryptionAlg OBJECT IDENTIFIER OPTIONAL,
+    verificationAlg OBJECT IDENTIFIER OPTIONAL,
+    publicKey OCTET STRING OPTIONAL,
+    expiryYear INTEGER (2000..2200) OPTIONAL,
+    expiryDay INTEGER (1..366) OPTIONAL,
+    expiryMinute INTEGER (0..1439) OPTIONAL,
+    validMinutes INTEGER (0..525600) OPTIONAL
+  }
+
+  DataBlock ::= SEQUENCE {
+    blockType IA5String,
+    data OCTET STRING
+  }
+
+END
+`;
+
+describe('Complex schema parsing', () => {
   let module: AsnModule;
 
   beforeAll(() => {
-    module = parseAsn1Module(asnText);
+    module = parseAsn1Module(ASN_TEXT);
   });
 
   describe('parsing', () => {
     it('parses the module name', () => {
-      expect(module.name).toBe('ASN-Module-UicBarcodeHeader');
+      expect(module.name).toBe('SampleProtocol');
     });
 
     it('parses AUTOMATIC TAGS', () => {
@@ -27,24 +61,24 @@ describe('UIC Barcode Header schema', () => {
     it('finds all 4 type assignments', () => {
       const names = module.assignments.map(a => a.name);
       expect(names).toEqual([
-        'UicBarcodeHeader',
-        'Level2DataType',
-        'Level1DataType',
-        'DataType',
+        'Envelope',
+        'SignedPayload',
+        'HeaderInfo',
+        'DataBlock',
       ]);
     });
 
-    it('parses UicBarcodeHeader as SEQUENCE with 3 fields', () => {
+    it('parses Envelope as SEQUENCE with 3 fields', () => {
       const type = module.assignments[0].type as AsnSequenceType;
       expect(type.kind).toBe('SEQUENCE');
       expect(type.fields).toHaveLength(3);
-      expect(type.fields[0].name).toBe('format');
-      expect(type.fields[1].name).toBe('level2SignedData');
-      expect(type.fields[2].name).toBe('level2Signature');
+      expect(type.fields[0].name).toBe('version');
+      expect(type.fields[1].name).toBe('payload');
+      expect(type.fields[2].name).toBe('checksum');
       expect(type.fields[2].optional).toBe(true);
     });
 
-    it('parses Level1DataType with 13 fields', () => {
+    it('parses HeaderInfo with 13 fields', () => {
       const type = module.assignments[2].type as AsnSequenceType;
       expect(type.kind).toBe('SEQUENCE');
       expect(type.fields).toHaveLength(13);
@@ -52,9 +86,8 @@ describe('UIC Barcode Header schema', () => {
 
     it('parses INTEGER constraints correctly', () => {
       const type = module.assignments[2].type as AsnSequenceType;
-      // securityProviderNum INTEGER (1..32000) OPTIONAL
       const field = type.fields[0];
-      expect(field.name).toBe('securityProviderNum');
+      expect(field.name).toBe('providerId');
       expect(field.optional).toBe(true);
       const ct = field.type as AsnConstrainedType;
       expect(ct.kind).toBe('ConstrainedType');
@@ -63,11 +96,10 @@ describe('UIC Barcode Header schema', () => {
       expect(ct.constraint.max).toBe(32000);
     });
 
-    it('parses SEQUENCE OF DataType', () => {
+    it('parses SEQUENCE OF DataBlock', () => {
       const type = module.assignments[2].type as AsnSequenceType;
-      // dataSequence SEQUENCE OF DataType
       const field = type.fields[3];
-      expect(field.name).toBe('dataSequence');
+      expect(field.name).toBe('dataBlocks');
       const seqOf = field.type as AsnSequenceOfType;
       expect(seqOf.kind).toBe('SEQUENCE OF');
       expect(seqOf.itemType.kind).toBe('TypeReference');
@@ -75,18 +107,17 @@ describe('UIC Barcode Header schema', () => {
 
     it('parses OBJECT IDENTIFIER fields', () => {
       const type = module.assignments[2].type as AsnSequenceType;
-      // level1KeyAlg OBJECT IDENTIFIER OPTIONAL
       const field = type.fields[4];
-      expect(field.name).toBe('level1KeyAlg');
+      expect(field.name).toBe('keyAlg');
       expect(field.type.kind).toBe('OBJECT IDENTIFIER');
       expect(field.optional).toBe(true);
     });
 
-    it('parses DataType as SEQUENCE with 2 fields', () => {
+    it('parses DataBlock as SEQUENCE with 2 fields', () => {
       const type = module.assignments[3].type as AsnSequenceType;
       expect(type.kind).toBe('SEQUENCE');
       expect(type.fields).toHaveLength(2);
-      expect(type.fields[0].name).toBe('dataFormat');
+      expect(type.fields[0].name).toBe('blockType');
       expect(type.fields[1].name).toBe('data');
     });
   });
@@ -95,74 +126,72 @@ describe('UIC Barcode Header schema', () => {
     it('converts all 4 types including OBJECT IDENTIFIER fields', () => {
       const schemas = convertModuleToSchemaNodes(module);
       expect(Object.keys(schemas)).toEqual([
-        'UicBarcodeHeader',
-        'Level2DataType',
-        'Level1DataType',
-        'DataType',
+        'Envelope',
+        'SignedPayload',
+        'HeaderInfo',
+        'DataBlock',
       ]);
     });
 
     it('converts OBJECT IDENTIFIER fields natively', () => {
       const schemas = convertModuleToSchemaNodes(module);
-      const level1 = schemas['Level1DataType'] as {
+      const header = schemas['HeaderInfo'] as {
         type: string;
         fields: Array<{ name: string; schema: { type: string }; optional?: boolean }>;
       };
-      const oidField = level1.fields.find(f => f.name === 'level1KeyAlg')!;
+      const oidField = header.fields.find(f => f.name === 'keyAlg')!;
       expect(oidField.schema).toEqual({ type: 'OBJECT IDENTIFIER' });
       expect(oidField.optional).toBe(true);
     });
 
-    it('retains all 13 fields in Level1DataType including OID fields', () => {
+    it('retains all 13 fields in HeaderInfo including OID fields', () => {
       const schemas = convertModuleToSchemaNodes(module);
-      const level1 = schemas['Level1DataType'] as {
+      const header = schemas['HeaderInfo'] as {
         type: string;
         fields: Array<{ name: string }>;
       };
-      expect(level1.fields).toHaveLength(13);
-      const fieldNames = level1.fields.map(f => f.name);
-      expect(fieldNames).toContain('level1KeyAlg');
-      expect(fieldNames).toContain('level2KeyAlg');
-      expect(fieldNames).toContain('level1SigningAlg');
-      expect(fieldNames).toContain('level2SigningAlg');
+      expect(header.fields).toHaveLength(13);
+      const fieldNames = header.fields.map(f => f.name);
+      expect(fieldNames).toContain('keyAlg');
+      expect(fieldNames).toContain('signingAlg');
+      expect(fieldNames).toContain('encryptionAlg');
+      expect(fieldNames).toContain('verificationAlg');
     });
 
-    it('produces correct DataType schema', () => {
+    it('produces correct DataBlock schema', () => {
       const schemas = convertModuleToSchemaNodes(module);
-      expect(schemas['DataType']).toEqual({
+      expect(schemas['DataBlock']).toEqual({
         type: 'SEQUENCE',
         fields: [
-          { name: 'dataFormat', schema: { type: 'IA5String' } },
+          { name: 'blockType', schema: { type: 'IA5String' } },
           { name: 'data', schema: { type: 'OCTET STRING' } },
         ],
       });
     });
 
-    it('resolves type references in UicBarcodeHeader', () => {
+    it('resolves type references in Envelope', () => {
       const schemas = convertModuleToSchemaNodes(module);
-      const header = schemas['UicBarcodeHeader'] as {
+      const envelope = schemas['Envelope'] as {
         type: string;
         fields: Array<{ name: string; schema: { type: string } }>;
       };
-      // level2SignedData should be resolved to Level2DataType's SEQUENCE
-      expect(header.fields[1].name).toBe('level2SignedData');
-      expect(header.fields[1].schema.type).toBe('SEQUENCE');
+      expect(envelope.fields[1].name).toBe('payload');
+      expect(envelope.fields[1].schema.type).toBe('SEQUENCE');
     });
 
     it('preserves INTEGER constraints after conversion', () => {
       const schemas = convertModuleToSchemaNodes(module);
-      const level1 = schemas['Level1DataType'] as {
+      const header = schemas['HeaderInfo'] as {
         type: string;
         fields: Array<{ name: string; schema: { type: string; min?: number; max?: number }; optional?: boolean }>;
       };
-      // securityProviderNum INTEGER (1..32000) OPTIONAL
-      const securityField = level1.fields.find(f => f.name === 'securityProviderNum')!;
-      expect(securityField.schema).toEqual({
+      const providerField = header.fields.find(f => f.name === 'providerId')!;
+      expect(providerField.schema).toEqual({
         type: 'INTEGER',
         min: 1,
         max: 32000,
       });
-      expect(securityField.optional).toBe(true);
+      expect(providerField.optional).toBe(true);
     });
 
     it('can build codecs from all types', () => {

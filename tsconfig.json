@@ -15,5 +15,5 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "tests", "website", "intercode6-ts"]
+  "exclude": ["node_modules", "dist", "tests", "website"]
 }

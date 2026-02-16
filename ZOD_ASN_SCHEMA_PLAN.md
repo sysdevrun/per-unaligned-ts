@@ -8,7 +8,7 @@ Currently, all codecs operate on `unknown` types:
 - `SequenceCodec` implements `Codec<Record<string, unknown>>`
 - `ChoiceCodec` implements `Codec<ChoiceValue>` where `value: unknown`
 
-Users must manually create TypeScript interfaces (as done in `intercode6-ts/src/types.ts`) and cast decoded values. There is no runtime validation of objects before encoding, and no typed output after decoding.
+Users must manually create TypeScript interfaces and cast decoded values. There is no runtime validation of objects before encoding, and no typed output after decoding.
 
 ## Goal
 
@@ -200,8 +200,8 @@ File: same test file, SEQUENCE section
 
 ### Step 7: Test with Real Schema
 
-Load `schemas/uic-barcode/intercode6.schema.json`, convert to Zod, and:
-- Validate that a known good Intercode object passes validation
+Load a complex `SchemaNode` definition, convert to Zod, and:
+- Validate that a known good object passes validation
 - Verify that a malformed object is rejected with meaningful errors
 - Round-trip encode/decode with typed codec
 

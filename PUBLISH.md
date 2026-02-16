@@ -92,7 +92,6 @@ Only the `dist/` directory (compiled ESM JavaScript + TypeScript declarations) i
 
 Excluded from the npm package:
 - `website/` (published separately to GitHub Pages)
-- `intercode6-ts/` (separate module)
 - `tests/`, `cli/`, `schemas/`, `examples/`
 - Source TypeScript files (`src/`)
 - Configuration files (`tsconfig.json`, `jest.config.cjs`, etc.)

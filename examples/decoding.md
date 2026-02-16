@@ -231,38 +231,6 @@ const raw = buffer.extractBits(4, 8);
 // raw === Uint8Array([0xbc]) — bits 4..11 extracted and left-aligned
 ```
 
-## Decoding with Pre-generated Schemas
-
-For complex real-world protocols, load pre-generated schema JSON files from the `schemas/` directory:
-
-```typescript
-import { SchemaCodec, SchemaBuilder, type SchemaNode } from 'asn1-per-ts';
-import headerSchemas from './schemas/uic-barcode/uicBarcodeHeader_v1.schema.json';
-
-// Simple schema (no $ref nodes) — use SchemaCodec directly
-const codec = new SchemaCodec(
-  headerSchemas.UicBarcodeHeader as unknown as SchemaNode,
-);
-
-const decoded = codec.decodeFromHex('...');
-```
-
-For schemas with recursive types (`$ref` nodes), use `SchemaBuilder.buildAll()`:
-
-```typescript
-import { SchemaBuilder, BitBuffer, type SchemaNode } from 'asn1-per-ts';
-import railTicketSchemas from './schemas/uic-barcode/uicRailTicketData_v2.schema.json';
-
-const codecs = SchemaBuilder.buildAll(
-  railTicketSchemas as unknown as Record<string, SchemaNode>,
-);
-
-const buffer = BitBuffer.from(someBytes);
-const ticket = codecs.UicRailTicketData.decode(buffer);
-```
-
-See `cli/decode-uic-barcode.ts` for a complete example of decoding nested UIC barcode data with multiple schema files and dispatch logic.
-
 ## Decoding from ASN.1 Text (Parse + Decode)
 
 Combine the parser with decoding in one pipeline:
@@ -519,42 +487,6 @@ const oid = codec.decode(buffer);
 // oid is a string like '1.2.840.113549.1.1'
 ```
 
-## Real-World Example: Decoding UIC Barcode
-
-The `cli/decode-uic-barcode.ts` tool demonstrates a complete decoding pipeline:
-
-1. Load pre-generated schemas from `schemas/uic-barcode/`
-2. Build codecs with `SchemaBuilder.buildAll()` for schemas containing `$ref` nodes
-3. Decode the outer `UicBarcodeHeader` structure
-4. Dispatch on `dataFormat` to decode nested data blocks (FCB2 rail ticket data)
-5. Dispatch on `extensionId` patterns to decode Intercode 6 extensions
-
-```typescript
-import { SchemaCodec, SchemaBuilder, BitBuffer, type SchemaNode } from 'asn1-per-ts';
-import headerSchemas from './schemas/uic-barcode/uicBarcodeHeader_v1.schema.json';
-import railTicketSchemas from './schemas/uic-barcode/uicRailTicketData_v2.schema.json';
-
-// Header uses no $ref → SchemaCodec
-const headerCodec = new SchemaCodec(
-  headerSchemas.UicBarcodeHeader as unknown as SchemaNode,
-);
-
-// Rail ticket data uses $ref → SchemaBuilder.buildAll()
-const railCodecs = SchemaBuilder.buildAll(
-  railTicketSchemas as unknown as Record<string, SchemaNode>,
-);
-
-// Decode header from hex
-const header = headerCodec.decodeFromHex(hexData) as any;
-
-// Decode nested FCB data block
-const dataBlock = header.level2SignedData.level1Data.dataSequence[0];
-const ticketBuffer = BitBuffer.from(dataBlock.data);
-const ticket = railCodecs.UicRailTicketData.decode(ticketBuffer);
-```
-
-See `cli/decode-uic-barcode.ts` for the full implementation.
-
 ## Related Files
 
 | File | Description |
@@ -576,4 +508,3 @@ See `cli/decode-uic-barcode.ts` for the full implementation.
 | `src/codecs/ChoiceCodec.ts` | `ChoiceCodec` with extension support |
 | `src/codecs/SequenceCodec.ts` | `SequenceCodec` with OPTIONAL/DEFAULT fields |
 | `src/codecs/SequenceOfCodec.ts` | `SequenceOfCodec` with size constraints |
-| `cli/decode-uic-barcode.ts` | CLI tool for decoding UIC barcode headers |
