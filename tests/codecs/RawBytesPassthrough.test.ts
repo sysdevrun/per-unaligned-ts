@@ -205,6 +205,92 @@ describe('RawBytes passthrough', () => {
     });
   });
 
+  describe('SchemaCodec.encodeToRawBytes', () => {
+    it('roundtrips inner structure through outer structure', () => {
+      const innerSchema = {
+        type: 'SEQUENCE' as const,
+        fields: [
+          { name: 'a', schema: { type: 'INTEGER' as const, min: 0, max: 255 } },
+          { name: 'b', schema: { type: 'BOOLEAN' as const } },
+        ],
+      };
+      const outerSchema = {
+        type: 'SEQUENCE' as const,
+        fields: [
+          { name: 'header', schema: { type: 'INTEGER' as const, min: 0, max: 65535 } },
+          { name: 'payload', schema: innerSchema },
+        ],
+      };
+
+      const innerCodec = new SchemaCodec(innerSchema);
+      const outerCodec = new SchemaCodec(outerSchema);
+
+      const raw = innerCodec.encodeToRawBytes({ a: 42, b: true });
+      const outerBytes = outerCodec.encode({ header: 1, payload: raw } as any);
+      const decoded = outerCodec.decode(outerBytes) as any;
+      expect(decoded).toEqual({ header: 1, payload: { a: 42, b: true } });
+    });
+
+    it('preserves exact bit-length for sub-byte types', () => {
+      const schema = { type: 'INTEGER' as const, min: 0, max: 7 };
+      const codec = new SchemaCodec(schema);
+      const raw = codec.encodeToRawBytes(5);
+      expect(raw.bitLength).toBe(3);
+    });
+
+    it('produces same result as manual BitBuffer approach', () => {
+      const schema = {
+        type: 'SEQUENCE' as const,
+        fields: [
+          { name: 'x', schema: { type: 'INTEGER' as const, min: 0, max: 7 } },
+          { name: 'y', schema: { type: 'BOOLEAN' as const } },
+        ],
+      };
+      const codec = new SchemaCodec(schema);
+
+      // Manual approach
+      const buf = BitBuffer.alloc();
+      codec.codec.encode(buf, { x: 5, y: true });
+      const manualRaw = new RawBytes(buf.toUint8Array(), buf.bitLength);
+
+      // encodeToRawBytes approach
+      const autoRaw = codec.encodeToRawBytes({ x: 5, y: true });
+
+      expect(autoRaw.data).toEqual(manualRaw.data);
+      expect(autoRaw.bitLength).toBe(manualRaw.bitLength);
+    });
+
+    it('handles nested passthrough with RawBytes input', () => {
+      const leafSchema = { type: 'INTEGER' as const, min: 0, max: 7 };
+      const midSchema = {
+        type: 'SEQUENCE' as const,
+        fields: [
+          { name: 'val', schema: leafSchema },
+          { name: 'flag', schema: { type: 'BOOLEAN' as const } },
+        ],
+      };
+      const outerSchema = {
+        type: 'SEQUENCE' as const,
+        fields: [
+          { name: 'id', schema: { type: 'INTEGER' as const, min: 0, max: 255 } },
+          { name: 'inner', schema: midSchema },
+        ],
+      };
+
+      const leafCodec = new SchemaCodec(leafSchema);
+      const midCodec = new SchemaCodec(midSchema);
+      const outerCodec = new SchemaCodec(outerSchema);
+
+      // Pre-encode leaf, embed in mid via RawBytes
+      const leafRaw = leafCodec.encodeToRawBytes(5);
+      const midRaw = midCodec.encodeToRawBytes({ val: leafRaw, flag: true } as any);
+      const outerBytes = outerCodec.encode({ id: 99, inner: midRaw } as any);
+
+      const decoded = outerCodec.decode(outerBytes) as any;
+      expect(decoded).toEqual({ id: 99, inner: { val: 5, flag: true } });
+    });
+  });
+
   describe('sub-byte precision', () => {
     it('handles RawBytes with bitLength less than full bytes', () => {
       // INTEGER(0..7) encodes to 3 bits, but toUint8Array() gives 1 byte

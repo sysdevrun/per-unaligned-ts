@@ -1,4 +1,5 @@
 import { BitBuffer } from '../BitBuffer.js';
+import { RawBytes } from '../RawBytes.js';
 import { Codec } from '../codecs/Codec.js';
 import type { DecodedNode } from '../codecs/DecodedNode.js';
 import { encodeValue } from '../helpers.js';
@@ -20,6 +21,13 @@ export class SchemaCodec {
     const buffer = BitBuffer.alloc();
     encodeValue(buffer, this._codec, value);
     return buffer.toUint8Array();
+  }
+
+  /** Encode a value and return a RawBytes with exact bit-length. */
+  encodeToRawBytes(value: unknown): RawBytes {
+    const buffer = BitBuffer.alloc();
+    encodeValue(buffer, this._codec, value);
+    return new RawBytes(buffer.toUint8Array(), buffer.bitLength);
   }
 
   /** Encode a value and return hex string. */

@@ -418,10 +418,12 @@ const bytes = buffer.toUint8Array();
 
 When embedding a pre-encoded sub-structure inside a larger structure, use `RawBytes` to write pre-encoded bits directly without re-encoding through the field's codec.
 
-### Basic usage
+### Recommended: `encodeToRawBytes()`
+
+`SchemaCodec.encodeToRawBytes()` encodes a value and returns a `RawBytes` with the exact bit-length preserved. This is the safest way to embed pre-encoded data, since `encode()` returns a `Uint8Array` that loses sub-byte precision.
 
 ```typescript
-import { SchemaCodec, RawBytes } from 'asn1-per-ts';
+import { SchemaCodec } from 'asn1-per-ts';
 
 const innerSchema = {
   type: 'SEQUENCE' as const,
@@ -442,16 +444,30 @@ const outerSchema = {
 const innerCodec = new SchemaCodec(innerSchema);
 const outerCodec = new SchemaCodec(outerSchema);
 
-// Pre-encode the inner structure
-const innerBytes = innerCodec.encode({ a: 42, b: true });
-
-// Wrap as RawBytes and embed in the outer structure
-const raw = new RawBytes(innerBytes, innerBytes.length * 8);
+// Pre-encode the inner structure with exact bit-length
+const raw = innerCodec.encodeToRawBytes({ a: 42, b: true });
 const outerBytes = outerCodec.encode({ header: 1, payload: raw });
 
 // Decoding works normally
 const decoded = outerCodec.decode(outerBytes);
 // decoded === { header: 1, payload: { a: 42, b: true } }
+```
+
+### Manual approach with BitBuffer
+
+For low-level usage where you already have a `BitBuffer`, you can construct `RawBytes` manually:
+
+```typescript
+import { SchemaCodec, BitBuffer, RawBytes } from 'asn1-per-ts';
+
+const innerCodec = new SchemaCodec(innerSchema);
+const outerCodec = new SchemaCodec(outerSchema);
+
+// Pre-encode using BitBuffer for exact bit-length control
+const buf = BitBuffer.alloc();
+innerCodec.codec.encode(buf, { a: 42, b: true });
+const raw = new RawBytes(buf.toUint8Array(), buf.bitLength);
+const outerBytes = outerCodec.encode({ header: 1, payload: raw });
 ```
 
 ### Sub-byte precision
@@ -492,7 +508,7 @@ Without `bitLength: 3`, the full 8 bits would be written, corrupting the `y` fie
 - **SEQUENCE** fields (mandatory, optional, default, extension)
 - **CHOICE** alternative values (root and extension)
 - **SEQUENCE OF** array elements
-- **Top-level** `SchemaCodec.encode()` and `SchemaCodec.encodeToHex()`
+- **Top-level** `SchemaCodec.encode()`, `SchemaCodec.encodeToHex()`, and `SchemaCodec.encodeToRawBytes()`
 
 ## Error Handling
 
