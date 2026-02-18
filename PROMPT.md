@@ -225,3 +225,7 @@ Evaluate how Zod could be used to output TypeScript typed objects depending on t
 ## Remove UIC/Intercode from website
 
 In website, remove everything related to UIC or intercode. Keep only focus on ASN.1 PER unaligned encoding decoding. Also update README if needed and any reference to it. Add link to https://github.com/sysdevrun/dosipas-ts as sister project using the library.
+
+## RawBytes passthrough for pre-encoded data
+
+Add support for passing pre-encoded raw bits when encoding. Create a `RawBytes` class that wraps a `Uint8Array` (+ optional `bitLength` for sub-byte precision). When the encoder encounters a `RawBytes` value for any field, it writes the bits directly to the BitBuffer instead of calling the field's codec. Support this in SEQUENCE fields, CHOICE values, SEQUENCE OF elements, and top-level SchemaCodec encoding. Add `writeRawBits()` to BitBuffer, centralized `encodeValue()` helper in helpers.ts, tests, and documentation in examples/encoding.md.

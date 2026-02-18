@@ -1,4 +1,5 @@
 export { BitBuffer } from './BitBuffer';
+export { RawBytes, isRawBytes } from './RawBytes';
 export type { Codec } from './codecs/Codec';
 export type { DecodedNode, FieldMeta } from './codecs/DecodedNode';
 export { stripMetadata } from './codecs/stripMetadata';

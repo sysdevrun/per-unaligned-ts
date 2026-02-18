@@ -6,6 +6,7 @@ import {
   decodeNormallySmallNumber,
   encodeUnconstrainedLength,
   decodeUnconstrainedLength,
+  encodeValue,
 } from '../helpers';
 
 export interface SequenceField {
@@ -86,13 +87,13 @@ export class SequenceCodec implements Codec<Record<string, unknown>> {
         const isPresent = fieldValue !== undefined && !this.isDefaultValue(field, fieldValue);
         optIdx++;
         if (!isPresent) continue;
-        field.codec.encode(buffer, fieldValue);
+        encodeValue(buffer, field.codec, fieldValue);
       } else {
         // Mandatory field
         if (value[field.name] === undefined) {
           throw new Error(`Missing mandatory field: '${field.name}'`);
         }
-        field.codec.encode(buffer, value[field.name]);
+        encodeValue(buffer, field.codec, value[field.name]);
       }
     }
 
@@ -111,7 +112,7 @@ export class SequenceCodec implements Codec<Record<string, unknown>> {
       for (const field of this.extFields) {
         if (value[field.name] !== undefined) {
           const tmp = BitBuffer.alloc();
-          field.codec.encode(tmp, value[field.name]);
+          encodeValue(tmp, field.codec, value[field.name]);
           const bytes = tmp.toUint8Array();
           encodeUnconstrainedLength(buffer, bytes.length);
           buffer.writeOctets(bytes);

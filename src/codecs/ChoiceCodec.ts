@@ -8,6 +8,7 @@ import {
   decodeNormallySmallNumber,
   encodeUnconstrainedLength,
   decodeUnconstrainedLength,
+  encodeValue,
 } from '../helpers';
 
 export interface ChoiceAlternative {
@@ -68,7 +69,7 @@ export class ChoiceCodec implements Codec<ChoiceValue> {
         if (this.rootAlts.length > 1) {
           encodeConstrainedWholeNumber(buffer, rootIdx, 0, this.rootAlts.length - 1);
         }
-        this.rootAlts[rootIdx].codec.encode(buffer, value.value);
+        encodeValue(buffer, this.rootAlts[rootIdx].codec, value.value);
       } else {
         const extIdx = this.extNameIndex.get(value.key);
         if (extIdx === undefined) {
@@ -78,7 +79,7 @@ export class ChoiceCodec implements Codec<ChoiceValue> {
         encodeNormallySmallNumber(buffer, extIdx);
         // Encode as open type: encode to temp buffer, then write length + bytes
         const tmp = BitBuffer.alloc();
-        this.extAlts[extIdx].codec.encode(tmp, value.value);
+        encodeValue(tmp, this.extAlts[extIdx].codec, value.value);
         const bytes = tmp.toUint8Array();
         encodeUnconstrainedLength(buffer, bytes.length);
         buffer.writeOctets(bytes);
@@ -90,7 +91,7 @@ export class ChoiceCodec implements Codec<ChoiceValue> {
       if (this.rootAlts.length > 1) {
         encodeConstrainedWholeNumber(buffer, rootIdx, 0, this.rootAlts.length - 1);
       }
-      this.rootAlts[rootIdx].codec.encode(buffer, value.value);
+      encodeValue(buffer, this.rootAlts[rootIdx].codec, value.value);
     }
   }
 

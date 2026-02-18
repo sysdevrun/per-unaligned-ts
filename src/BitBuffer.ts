@@ -137,6 +137,26 @@ export class BitBuffer {
     }
   }
 
+  /**
+   * Write exactly `bitLength` bits from a left-aligned byte array.
+   * This is the inverse of extractBits(): the source bits are
+   * packed MSB-first starting from bit 0 of data[0].
+   */
+  writeRawBits(data: Uint8Array, bitLength: number): void {
+    if (bitLength === 0) return;
+    if (bitLength < 0 || bitLength > data.length * 8) {
+      throw new Error(
+        `writeRawBits: bitLength (${bitLength}) out of range [0, ${data.length * 8}]`
+      );
+    }
+    for (let i = 0; i < bitLength; i++) {
+      const byteIndex = i >> 3;
+      const bitIndex = 7 - (i & 7);
+      const bit = ((data[byteIndex] >> bitIndex) & 1) as 0 | 1;
+      this.writeBit(bit);
+    }
+  }
+
   /** Read raw bytes. */
   readOctets(byteCount: number): Uint8Array {
     const result = new Uint8Array(byteCount);

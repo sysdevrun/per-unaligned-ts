@@ -1,4 +1,6 @@
 import { BitBuffer } from './BitBuffer';
+import type { Codec } from './codecs/Codec';
+import { isRawBytes } from './RawBytes';
 
 /**
  * Number of bits needed to encode a constrained whole number with range (max - min + 1).
@@ -251,4 +253,20 @@ function bytesToSignedInt(bytes: Uint8Array): number {
     carry = sum >> 8;
   }
   return -bytesToUnsignedInt(inverted);
+}
+
+/**
+ * Encode a value into the buffer: if value is a RawBytes instance,
+ * write the raw bits directly; otherwise delegate to the codec.
+ */
+export function encodeValue(
+  buffer: BitBuffer,
+  codec: Codec<unknown>,
+  value: unknown,
+): void {
+  if (isRawBytes(value)) {
+    buffer.writeRawBits(value.data, value.bitLength);
+  } else {
+    codec.encode(buffer, value);
+  }
 }

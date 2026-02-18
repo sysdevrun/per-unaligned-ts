@@ -6,6 +6,7 @@ import {
   decodeConstrainedLength,
   encodeUnconstrainedLength,
   decodeUnconstrainedLength,
+  encodeValue,
 } from '../helpers';
 
 export interface SequenceOfConstraints<T = unknown> {
@@ -119,7 +120,7 @@ export class SequenceOfCodec<T = unknown> implements Codec<T[]> {
 
   private encodeItems(buffer: BitBuffer, items: T[]): void {
     for (const item of items) {
-      this.itemCodec.encode(buffer, item);
+      encodeValue(buffer, this.itemCodec, item);
     }
   }
 

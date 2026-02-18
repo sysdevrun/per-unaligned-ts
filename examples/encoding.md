@@ -414,6 +414,86 @@ intCodec.encode(buffer, 100);    // 8 bits
 const bytes = buffer.toUint8Array();
 ```
 
+## Raw Bytes Passthrough (Pre-encoded Data)
+
+When embedding a pre-encoded sub-structure inside a larger structure, use `RawBytes` to write pre-encoded bits directly without re-encoding through the field's codec.
+
+### Basic usage
+
+```typescript
+import { SchemaCodec, RawBytes } from 'asn1-per-ts';
+
+const innerSchema = {
+  type: 'SEQUENCE' as const,
+  fields: [
+    { name: 'a', schema: { type: 'INTEGER' as const, min: 0, max: 255 } },
+    { name: 'b', schema: { type: 'BOOLEAN' as const } },
+  ],
+};
+
+const outerSchema = {
+  type: 'SEQUENCE' as const,
+  fields: [
+    { name: 'header', schema: { type: 'INTEGER' as const, min: 0, max: 65535 } },
+    { name: 'payload', schema: innerSchema },
+  ],
+};
+
+const innerCodec = new SchemaCodec(innerSchema);
+const outerCodec = new SchemaCodec(outerSchema);
+
+// Pre-encode the inner structure
+const innerBytes = innerCodec.encode({ a: 42, b: true });
+
+// Wrap as RawBytes and embed in the outer structure
+const raw = new RawBytes(innerBytes, innerBytes.length * 8);
+const outerBytes = outerCodec.encode({ header: 1, payload: raw });
+
+// Decoding works normally
+const decoded = outerCodec.decode(outerBytes);
+// decoded === { header: 1, payload: { a: 42, b: true } }
+```
+
+### Sub-byte precision
+
+PER unaligned is bit-packed, so pre-encoded data may have trailing padding bits in the last byte. Use the `bitLength` parameter for precision:
+
+```typescript
+import { BitBuffer, IntegerCodec, SequenceCodec, BooleanCodec, RawBytes } from 'asn1-per-ts';
+
+// INTEGER(0..7) encodes to 3 bits
+const intCodec = new IntegerCodec({ min: 0, max: 7 });
+const tmp = BitBuffer.alloc();
+intCodec.encode(tmp, 5);
+
+// toUint8Array() returns 1 byte with 5 padding bits
+const data = tmp.toUint8Array();   // [0b10100000]
+const raw = new RawBytes(data, 3); // only 3 bits are valid
+
+const seq = new SequenceCodec({
+  fields: [
+    { name: 'x', codec: intCodec },
+    { name: 'y', codec: new BooleanCodec() },
+  ],
+});
+
+const buf = BitBuffer.alloc();
+seq.encode(buf, { x: raw, y: true });
+buf.reset();
+const result = seq.decode(buf);
+// result === { x: 5, y: true }
+```
+
+Without `bitLength: 3`, the full 8 bits would be written, corrupting the `y` field.
+
+### Where RawBytes works
+
+`RawBytes` is supported in all encoding contexts:
+- **SEQUENCE** fields (mandatory, optional, default, extension)
+- **CHOICE** alternative values (root and extension)
+- **SEQUENCE OF** array elements
+- **Top-level** `SchemaCodec.encode()` and `SchemaCodec.encodeToHex()`
+
 ## Error Handling
 
 Encoding throws errors when:

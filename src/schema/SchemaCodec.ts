@@ -1,6 +1,7 @@
 import { BitBuffer } from '../BitBuffer';
 import { Codec } from '../codecs/Codec';
 import type { DecodedNode } from '../codecs/DecodedNode';
+import { encodeValue } from '../helpers';
 import { SchemaBuilder, SchemaNode } from './SchemaBuilder';
 
 /**
@@ -17,14 +18,14 @@ export class SchemaCodec {
   /** Encode a value to a Uint8Array. */
   encode(value: unknown): Uint8Array {
     const buffer = BitBuffer.alloc();
-    this._codec.encode(buffer, value);
+    encodeValue(buffer, this._codec, value);
     return buffer.toUint8Array();
   }
 
   /** Encode a value and return hex string. */
   encodeToHex(value: unknown): string {
     const buffer = BitBuffer.alloc();
-    this._codec.encode(buffer, value);
+    encodeValue(buffer, this._codec, value);
     return buffer.toHex();
   }
 
