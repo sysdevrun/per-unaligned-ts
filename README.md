@@ -2,6 +2,8 @@
 
 [![npm](https://img.shields.io/npm/v/asn1-per-ts)](https://www.npmjs.com/package/asn1-per-ts)
 
+**[Try it in the sandbox](https://sysdevrun.github.io/asn1-per-ts/)**
+
 TypeScript library for encoding and decoding data using ASN.1 PER (Packed Encoding Rules) unaligned variant (ITU-T X.691).
 
 ## Features

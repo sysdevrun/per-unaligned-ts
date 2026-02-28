@@ -241,3 +241,7 @@ Add `encodeToRawBytes(value): RawBytes` method to `SchemaCodec` that encodes a v
 ## Website Schema Explorer tab
 
 In website, add a new tab. There is a textarea to input an ASN.1 schema. The npm module parses the schema to generate nodes. Then each node is represented by a React component. For elements that accept inside elements such as SEQUENCE, it's recursive. Each element displays the name of the field. If a default value is present, let the user check default value or set an actual value. Inputs must implement constraints in JavaScript too.
+
+## Add sandbox link to README
+
+Add link to sandbox Website https://sysdevrun.github.io/asn1-per-ts/ at the beginning of the readme.
