@@ -237,3 +237,7 @@ v1.2.0 was published with `"type": "module"` in `package.json` but `tsconfig.bui
 ## Add `encodeToRawBytes()` to SchemaCodec
 
 Add `encodeToRawBytes(value): RawBytes` method to `SchemaCodec` that encodes a value and returns a `RawBytes` with exact bit-length preserved. This avoids the precision loss from `encode()` which returns `Uint8Array` (rounded up to whole bytes). Add tests for roundtrip, bit-length preservation, equivalence with manual approach, and nested passthrough. Update encoding documentation to recommend `encodeToRawBytes` as the primary approach for embedding pre-encoded data.
+
+## Add Form Builder tab to website
+
+In website, add a new tab. There is a textarea to input an ASN.1 schema. The npm module parses the schema to generate nodes. Then each node is represented by a React component. For elements that accept inside elements such as SEQUENCE, it's recursive. Each element displays the name of the field. If a default value is present, let the user check default value or set an actual value. Inputs must implement constraints in JavaScript too.

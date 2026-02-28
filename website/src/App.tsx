@@ -4,6 +4,7 @@ import ProjectDescription from './components/ProjectDescription';
 import SchemaBuilder from './components/SchemaBuilder';
 import EncoderDecoder from './components/EncoderDecoder';
 import AsnSchemaParser from './components/AsnSchemaParser';
+import AsnFormBuilder from './components/AsnFormBuilder';
 import Footer from './components/Footer';
 import type { SchemaNode } from 'asn1-per-ts';
 
@@ -20,6 +21,7 @@ const DEFAULT_SCHEMA: SchemaNode = {
 };
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState<'codec' | 'form'>('codec');
   const [schema, setSchema] = useState<SchemaNode>(DEFAULT_SCHEMA);
   const [schemaText, setSchemaText] = useState(JSON.stringify(DEFAULT_SCHEMA, null, 2));
   const [schemaError, setSchemaError] = useState<string | null>(null);
@@ -41,20 +43,51 @@ export default function App() {
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8 space-y-8">
         <ProjectDescription />
 
-        <section>
-          <h2 className="text-xl font-semibold mb-4">ASN.1 Schema Parser</h2>
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <AsnSchemaParser onSchemaSelect={handleSchemaChange} />
+        <div>
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setActiveTab('codec')}
+              className={`px-5 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'codec'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Encode / Decode
+            </button>
+            <button
+              onClick={() => setActiveTab('form')}
+              className={`px-5 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+                activeTab === 'form'
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Form Builder
+            </button>
           </div>
-        </section>
 
-        <SchemaBuilder
-          schemaText={schemaText}
-          schemaError={schemaError}
-          onChange={handleSchemaChange}
-        />
+          {activeTab === 'codec' ? (
+            <div className="space-y-8">
+              <section>
+                <h2 className="text-xl font-semibold mb-4">ASN.1 Schema Parser</h2>
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <AsnSchemaParser onSchemaSelect={handleSchemaChange} />
+                </div>
+              </section>
 
-        <EncoderDecoder schema={schema} schemaError={schemaError} />
+              <SchemaBuilder
+                schemaText={schemaText}
+                schemaError={schemaError}
+                onChange={handleSchemaChange}
+              />
+
+              <EncoderDecoder schema={schema} schemaError={schemaError} />
+            </div>
+          ) : (
+            <AsnFormBuilder />
+          )}
+        </div>
       </main>
       <Footer />
     </div>
